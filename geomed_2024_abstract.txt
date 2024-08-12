@@ -1,0 +1,17 @@
+Title:  Spatial Modeling in Stan
+
+Session Outline
+
+- Stan overview
+  + overview of the Stan modeling language
+  + Stan inference algorithms - Hamiltonian Monte Carlo, variatonal, optimization
+  + Stan ecosystem - tools for visualization and validation
+  + Higher level interfaces:  R pagakce BRMS
+
+- Spatial models in Stan
+  - GRMFs - CAR / ICAR / BYM2 models - areal data
+  - Gaussian Processes
+
+
+- Case Study: Bayesian spatial modelling of localised SARS-CoV-2 transmission through mobility networks across England.
+

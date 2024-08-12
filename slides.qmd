@@ -1,0 +1,147 @@
+---
+title: Spatial Modeling in Stan
+author: Mitzi Morris
+institute: Stan Development Team
+date: Sept 11, 2024
+format:
+  beamer:
+    aspectratio: 169
+    pdf-engine: pdflatex
+    theme: metropolis
+    include-in-header: preamble.tex
+    navigation: horizontal
+    dev: png 
+---
+
+# Outline
+
+* Overview of Stan: Language, Inference Algorithms, Tools
+
+* Spatial Models:  BYM2,  BYM2 for disconnected graphs
+
+* Case Study
+
+* Discussion throughout - please ask questions!
+
+# What is Stan?
+
+\tightlist
+* A Probabalistic Programming Language
+
+\vspace*{2pt}
+* A Suite of Inference Algorithms
+  + Exact Bayesian inference using MCMC (NUTS-HMC)
+  + Aproximate Bayesian inference using ADVI, Pathfinder
+  + Point estimates using Optimization, Laplace approximation
+
+\vspace*{4pt}
+* Plus Ecosystem of Tools
+  + Interfaces: CmdStanR, CmdStanPy, Stan.jl (Julia), CmdStan (command shell)
+  + Validation and Visualization: Posterior, Bayesplot, LOO (R),\
+ArviZ (Python), ArviZ.jl (Julia)
+
+\vspace*{4pt}
+* *Open Source*, *Cross-platform*: runs on Linux, Mac, Windows
+
+\vspace*{2pt}
+* *Open Community*:  https://discourse.mc-stan.org
+
+# The Stan Language
+
+* A Stan program
+  + declares data and (constrained) parameter variables
+  + defines log posterior and quantities of interest
+
+
+
+# First Stan Example: Laplace's Model of Birth Rate by Sex
+
+
+* Laplace's data on live births in Paris from 1745--1770:
+\vspace*{-4pt}
+\begin{center}\small
+\begin{tabular}{c|c}
+{\slshape sex} & {\slshape live births}
+\\ \hline
+female & 241\,945
+\\
+male & 251\,527
+\end{tabular}
+\end{center}
+
+* *Question 1* (Estimation): What is the birth rate of boys vs. girls?
+
+* *Question 2* (Event Probability): Is a boy more likely to be born than a girl?
+
+
+
+
+# Laplace's Model in Stan
+
+```stan
+transformed data {
+  int male = 251527;
+  int female = 241945;
+}
+parameters {
+  real<lower=0, upper=1> theta;
+}
+model {
+  male ~ binomial(male + female, theta);
+}
+generated quantities {
+  int<lower=0, upper=1> theta_gt_half = (theta > 0.5);
+}
+```
+
+
+# Laplace's Answer
+
+```
+> fit <- stan("laplace.stan", iter=100000);
+> print(fit, probs=c(0.005, 0.995), digits=3)
+
+                    mean   0.5%  99.5%
+theta               0.51  0.508  0.512
+theta_gt_half       1.00  1.000  1.000
+```
+
+
+* Q1: $\theta$ is 99\% certain to lie in $(0.508, 0.512)$
+* Q2:  Laplace ``morally certain'' boys more prevalent
+
+
+
+
+
+# Stan Inference Algorithms
+
+* NUTS-HMC - No-U-Turn Sampler for Hamiltonian Monte Carlo
+
+* Variational Inference:   ADVI, Pathfinder
+
+* Optimization:  LBFGS for MLE, MAP + Laplace approximation of variance
+
+# Stan Ecosystem:
+
+* Programming language interfaces:  CmdStanR, CmdStanPy, Stan.jl
+
+* Tools for visualization and validation:  Bayesplot, LOO, ArviZ, Arviz.jl
+
+* BridgeStan - algorithm development and exploration
+
+# Higher Level Interface: BRMS (R)
+
+# Bayesian Workflow
+
+
+
+# References
+
+
+* \href{https://mc-stan.org/docs/stan-users-guide/index.html}{Stan User's Guide}
+* \href{https://bob-carpenter.github.io/stan-getting-started/stan-getting-started.html}{Getting Started with Bayesian Statistics}
+* \href {https://www.usgs.gov/faqs/what-geographic-information-system-gis}{Geographic Information System}(GIS)
+* \href{https://github.com/mitzimorris/ljubljiana_lecture/blob/main/data_prep_spatial_maps.ipynb}{Map-making with Plotnine}
+
+\textit{Questions?}

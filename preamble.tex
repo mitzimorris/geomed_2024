@@ -1,0 +1,97 @@
+\definecolor{zlightblue}{rgb}{0.62353, 0.81176, 0.87451}
+\definecolor{zaquablue}{rgb}{0.2431, 0.55686, 0.73725}
+\definecolor{zdarkblue}{rgb}{0.0196, 0.1529, 0.26667}
+\definecolor{zbeige}{rgb}{0.949, 0.898, 0.7412}
+\definecolor{zlightbeige}{rgb}{0.996, 0.9725, 0.9098}
+
+\setbeamercolor{palette primary}{bg=zlightbeige, fg=zdarkblue}
+\setbeamercolor{palette secondary}{bg=zlightbeige, fg=zdarkblue}
+\setbeamercolor{palette tertiary}{bg=zlightbeige, fg=zdarkblue}
+\setbeamercolor{palette quaternary}{bg=zbeige, fg=zdarkblue}
+
+\setbeamercolor{frametitle}{bg=zlightblue, fg=zdarkblue}
+\setbeamercolor{sidebar}{bg=zbeige, fg=zaquablue}
+\setbeamercolor{background canvas}{bg=zlightbeige}
+
+\setbeamercolor{structure}{fg=zdarkblue} % itemize, enumerate, etc
+\setbeamercolor{section in toc}{fg=zdarkblue} % TOC sections
+\setbeamercolor{section in head/foot}{bg=zbeige,fg=zaquablue}
+\setbeamercolor{subsection in head/foot}{bg=zbeige,fg=zaquablue}
+
+\hyphenpenalty=10000
+\hbadness=10000
+\AtBeginEnvironment{quote}{\raggedright}
+
+\setbeamertemplate{frame numbering}[none]
+\setbeamertemplate{title page}[plain]
+
+\titlegraphic{\vspace*{4.5cm}%
+  \hspace*{5.5cm}%
+   \includegraphics[width=2.75cm]{img/logo.png}
+}
+
+%\logo{\includegraphics[width=0.75cm]{img/logo.png}}
+
+
+\setbeamerfont{title}{size={\fontsize{18}{18}}}
+\setbeamerfont{subtitle}{size={\fontsize{20}{18}}}
+\setbeamerfont{author}{size={\fontsize{11}{8}}}
+\setbeamerfont{frametitle}{size={\fontsize{16}{14}}}
+
+\setbeamertemplate{frametitle}{%
+    \nointerlineskip%
+    \begin{beamercolorbox}[wd=\paperwidth,ht=2.5ex,dp=0.6ex]{frametitle}
+        \hspace*{1ex}\insertframetitle%
+    \end{beamercolorbox}%
+}
+
+
+
+\linespread{1.3}
+
+% \makeatletter
+% \setbeamertemplate{title page}{
+%   \begin{minipage}[b][\paperheight]{\textwidth}
+%     \vfill%
+%     \ifx\inserttitle\@empty\else\usebeamertemplate*{title}\fi
+%     \ifx\insertsubtitle\@empty\else\usebeamertemplate*{subtitle}\fi
+%     \usebeamertemplate*{title separator}
+%     \ifx\beamer@shortauthor\@empty\else\usebeamertemplate*{author}\fi
+%     \ifx\insertinstitute\@empty\else\usebeamertemplate*{institute}\fi
+%     \ifx\insertdate\@empty\else\usebeamertemplate*{date}\fi
+%     \vfill
+%     \vspace*{1cm}
+%   \end{minipage}
+% }
+
+\makeatother
+
+
+
+\newcommand\given[1][]{\:#1\vert\:}
+
+%\renewcommand{\indent}{\hspace*{2em}}
+
+\usepackage{amsmath}
+
+\usepackage[justification=centering]{caption}
+
+% \usepackage{caption}
+% \captionsetup{justification=raggedright,singlelinecheck=false}
+
+\usepackage[export]{adjustbox}
+
+\usepackage{quoting}
+\quotingsetup{leftmargin=1cm, rightmargin=1cm}
+
+\usepackage{colonequals}
+
+\def\begincols{\begin{columns}}
+\def\begincol{\begin{column}}
+\def\endcol{\end{column}}
+\def\endcols{\end{columns}}
+\def\beginits{\begin{itemize}}
+\def\endits{\end{itemize}}
+
+
+\newcommand{\myemph}[1]{{\textit{\bfseries #1}}}

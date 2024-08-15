@@ -1,3 +1,24 @@
+Workshop Goal:
+
+The goals of this workshop are twofold:
+
+- To introduce new users to existing implementations of spatial models in Stan and the corresponding tools and workflow for model validation and comparison.
+
+- To provide researchers with the necessary understanding of Stan language syntax and computation so that they can develop custom models and extend existing ones.
+
+We will provide both R and Python Jupyter notebooks and use publicly available datasets.
+
+Part 1
+
+To show how statistical models are expressed in the Stan probabilistic programming language, we start with simple linear and multi-level regression models.  Next we the ICAR model developed by Besag (1973), which uses an intrinsic Gaussian Markov random field to model spatial correlation between areal units, and the corresponding generative but computationally expensive Conditional Autoregressive (CAR) model. Throughout we use tools from the Stan ecosystem to validate and visualize the model fit and inferences.
+
+Part 2
+
+To show how to build complex models using the elements from part 1, we focus on the Besag York Mollié model (1991), which accounts for both spatial and random variation in observed per-area disease data. We work through the Stan implementation of the BYM2 model of Riebler et al (2016), a reparameterization of the BYM model which provides independent hyperparameters for the spatial and random effects components.  We then present several extensions of this model developed during the SARS-Cov-19 pandemic.
+
+
+
+
 Title:  Spatial Modeling in Stan
 
 Session Outline
@@ -6,12 +27,10 @@ Session Outline
   + overview of the Stan modeling language
   + Stan inference algorithms - Hamiltonian Monte Carlo, variatonal, optimization
   + Stan ecosystem - tools for visualization and validation
-  + Higher level interfaces:  R pagakce BRMS
+  + Higher level interfaces:  R package BRMS
 
 - Spatial models in Stan
   - GRMFs - CAR / ICAR / BYM2 models - areal data
-  - Gaussian Processes
-
 
 - Case Study: Bayesian spatial modelling of localised SARS-CoV-2 transmission through mobility networks across England.
 

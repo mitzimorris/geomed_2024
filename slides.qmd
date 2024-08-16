@@ -6,7 +6,7 @@ date: Sept 9, 2024
 format:
   beamer:
     syntax-definitions:
-      - "stan.xml"
+      - "theming/stan.xml"
     highlight-style: tango
     aspectratio: 169
     pdf-engine: pdflatex
@@ -68,97 +68,7 @@ format:
 * *Solution*: Code and doc open source (BSD, CC-BY)
 
 
-# The Stan Language
-
-\tightlist
-* A Stan program
-  + Declares data and (constrained) parameter variables
-  + Defines log posterior (or penalized likelihood)
-  + Computes quantities of interest
-
-* Stan Syntax
-  + Syntax influenced by BUGS (and JAVA - semicolons at end of statements,\
-curly braces around blocks)
-  + Named program blocks - distinguish between data and parameters (not like BUGS)
-  + Control flow:  `if` statements - dynamic branch points (more powerful than BUGS)
-  + Explicit variable types (like C, C++, JAVA, not like Python, R, BUGS)
-
-* Stan Math Library
-  + Rich set of probability distributions and mathematical functions available as part of the language.
-
-
-# Stan Example: Laplace's Model of Birth Rate by Sex
-
-\vspace{-0.1in}
-Laplace's data on live births in Paris from 1745--1770:
-
-\begin{center}\small
-\begin{tabular}{c|c}
-{\slshape sex} & {\slshape live births}
-\\ \hline
-female & 241\,945
-\\
-male & 251\,527
-\end{tabular}
-\end{center}
-
-\vspace*{0.1in}
-
-* *Question 1* (Estimation): What is the birth rate of boys vs. girls?
-
-* *Question 2* (Event Probability): Is a boy more likely to be born than a girl?
-
-
-\vspace*{0.15in}
-Laplace computed this analytically.  Let's use Stan's NUTS-HMC sampler instead.
-
-
-# Laplace's Model in Stan
-
-\fontsize{9pt}{9.4}\selectfont
-```stan
-transformed data {
-  int male = 251527;
-  int female = 241945;
-}
-parameters {
-  real<lower=0, upper=1> theta;
-}
-model {
-  male ~ binomial(male + female, theta);
-}
-generated quantities {
-  int<lower=0, upper=1> theta_gt_half = (theta > 0.5);
-}
-```
-\normalsize
-
-
-# Laplace's Answer
-\vspace{-0.1in}
-
-\fontsize{9pt}{9.4}\selectfont
-```
-library(cmdstanr)
-births_model = cmdstan_model("laplace.stan")
-births_fit = births_model$sample()
-as.data.frame(births_fit$summary())
-      variable       mean     median       sd         q5         q95
-
-         theta       0.51       0.51 0.000725      0.509       0.511
- theta_gt_half       1.00       1.00 0.000000      1.000       1.000
-```
-\normalsize
-
-\vspace{0.1in}
-* *Question 1* (Estimation): What is the birth rate of boys vs. girls?\
-$\theta$ is 90\% certain to lie in $(0.509, 0.511)$
-
-* *Question 2* (Event Probability): Is a boy more likely to be born than a girl?\
-Laplace "morally certain" boys more prevalent
-
-
-# Why Stan? Continued
+# Why Stan?
 
 \tightlist
 * **Goal**: Robust, fully Bayesian inference.
@@ -231,7 +141,6 @@ on the unconstrained scale)
    + Laplace approximation - obtain samples from posterior mode
 
 
-
 # Stan Toolset
 
 * Programming language interfaces:  CmdStanR, CmdStanPy, Stan.jl, (MatLabStan)
@@ -244,7 +153,8 @@ on the unconstrained scale)
 \vspace{0.05in}
 * Higher Level Interface for R: BRMS - Bayesian Regression Models in Stan
   + Model specification via extended R formula, data supplied as R dataframe
-  + BRMS translates formula to Stan program, compiles, fits model to data
+  + BRMS translates formula to Stan, creates list of inputs from dataframe,\
+runs NUTS-HMC sampler, checks inferences.
 
 
 \vspace{0.05in}
@@ -253,7 +163,119 @@ on the unconstrained scale)
   + Constrain/unconstrain model parameters
 
 
-# Getting Started:  Notebook 1
+# The Stan Language
+
+\tightlist
+* A Stan program
+  + Declares data and (constrained) parameter variables
+  + Defines log posterior (or penalized likelihood)
+  + Computes quantities of interest
+
+* Syntax
+  + Influenced by BUGS (plus Java/C++ punctuation)
+  + Named program blocks - distinguish between data and parameters (not like BUGS)
+  + Control flow:  `if` statements - dynamic branch points (more powerful than BUGS)
+  + Explicit variable types (like Java/C++, not like Python, R)
+
+* Mathematical operations
+  + Stan language includes a very large set of probability distributions\
+and mathematical functions from Stan's math library
+  + Efficient, vectorized (almost always)
+
+
+# Stan Example: Laplace's Model of Birth Rate by Sex
+
+\vspace{-0.1in}
+Laplace's data on live births in Paris from 1745--1770:
+
+\begin{center}\small
+\begin{tabular}{c|c}
+{\slshape sex} & {\slshape live births}
+\\ \hline
+female & 241\,945
+\\
+male & 251\,527
+\end{tabular}
+\end{center}
+
+\vspace*{0.1in}
+
+* *Question 1* (Estimation): What is the birth rate of boys vs. girls?
+
+* *Question 2* (Event Probability): Is a boy more likely to be born than a girl?
+
+
+\vspace*{0.15in}
+Laplace computed this analytically.  Let's use Stan's NUTS-HMC sampler instead.
+
+
+# Laplace's Model in Stan
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+transformed data {
+  int male = 251527;
+  int female = 241945;
+}
+parameters {
+  real<lower=0, upper=1> theta;
+}
+model {
+  male ~ binomial(male + female, theta);
+}
+generated quantities {
+  int<lower=0, upper=1> theta_gt_half = (theta > 0.5);
+}
+```
+\normalsize
+
+
+# Laplace's Answer
+\vspace{-0.1in}
+
+\fontsize{9pt}{9.4}\selectfont
+```
+births_model = cmdstan_model("laplace.stan")   # compile model
+births_fit = births_model$sample()             # run inference algorithm
+as.data.frame(births_fit$summary())            # manage results
+
+      variable       mean     median       sd         q5         q95
+
+         theta       0.51       0.51 0.000725      0.509       0.511
+ theta_gt_half       1.00       1.00 0.000000      1.000       1.000
+```
+\normalsize
+
+\vspace{0.1in}
+* *Question 1* (Estimation): What is the birth rate of boys vs. girls?\
+$\theta$ is 90\% certain to lie in $(0.509, 0.511)$
+
+* *Question 2* (Event Probability): Is a boy more likely to be born than a girl?\
+Laplace "morally certain" boys more prevalent
+
+# Processing Steps
+
+* Compile model
+  + Stan compiler translates Stan file to C++ file
+  + C++ file is compiled to executable program, via GNU Make
+  + *prerequisites: a C++17 compiler, GNU-Make*\
+*both CmdStanPy and CmdStanR have utilities to install these*
+
+* Run inference algorithm
+  + Interfaces run compiled executable program (as subprocess)
+  + Compiled executable generates per-chain output files (modified CSV format)
+
+* Get results via interface methods
+  + Parse CSV outputs into in-memory object
+  + Access individual parameters and quantities of interest
+  + Run summary and diagnostic reports
+
+
+# Install Stan
+
+If you don't already have Stan running on your machine, 10 minutes to get it working now.
+
+If you already have Stan running on your machine, please help your neighbor.
 
 Install Stan
 Run CmdStanR or CmdStanPy
@@ -263,11 +285,11 @@ Run Laplace Stan
 Modify Laplace Stan, use supplied inputs
 
 
-# Getting Started:  Notebook 2
+# Notebook One:  Poisson regression for areal data
 
 Poisson regression:  disease rate per area, complete data:  all events recorded, population known
 
-# Getting Started:  Notebook 3
+# Notebook Two: Test sensitivity, specificity
 
 Covid model - binomial regression:  disease rate per area, convenience sample - use MRP to post-stratify
 
@@ -311,5 +333,7 @@ posterior predictive checks
 * \href{https://bob-carpenter.github.io/stan-getting-started/stan-getting-started.html}{Getting Started with Bayesian Statistics}
 * \href {https://www.usgs.gov/faqs/what-geographic-information-system-gis}{Geographic Information System}(GIS)
 * \href{https://github.com/mitzimorris/ljubljiana_lecture/blob/main/data_prep_spatial_maps.ipynb}{Map-making with Plotnine}
+
+* \{https://www.uio.no/studier/emner/matnat/math/STK4051/v23/timeplan/lecture_12_softwareformcmc.pdf}{Software for MCMC}, a very nice set of course notes from Odd Kolbjørnsen, Spring 2023, Oslo Uni.
 
 \textit{Questions?}

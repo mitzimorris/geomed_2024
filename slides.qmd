@@ -273,16 +273,24 @@ Laplace "morally certain" boys more prevalent
 
 # Install Stan
 
-If you don't already have Stan running on your machine, 10 minutes to get it working now.
+\tightlist
+*  If you don't already have Stan running on your machine, 10 minutes to get it working now.
+   + *If you already have Stan running on your machine, please help your neighbor.*
 
-If you already have Stan running on your machine, please help your neighbor.
+\vspace*{8pt}
+* See notebook:  ....
 
-Install Stan
-Run CmdStanR or CmdStanPy
 
-Run Laplace Stan
+\vspace*{8pt}
+* Build CmdStan (as needed)
 
-Modify Laplace Stan, use supplied inputs
+\vspace*{8pt}
+* Compile, run Laplace Stan
+
+\vspace*{8pt}
+* Bonus activity: Modify Laplace Stan
+  + Change `transformed data` block to `data block`
+  + Run with list of inputs: {"male",  "female"}
 
 
 # Notebook One:  Poisson regression for areal data

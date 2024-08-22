@@ -1,0 +1,127 @@
+---
+title: Stan installation instructions for GeoMed workshop participants
+
+format:
+  html:
+    css: ../theming/quarto_styles.css 
+    syntax-definitions:
+      - ../theming/stan.xml
+    toc: true
+    toc-location: left
+---
+
+For this workshop, we will be using the R and Python interfaces `CmdStanR` and `CmdStanPy`, respectively.
+
+## Prerequisites: C++ Toolchain
+
+Compiling a Stan program requires a modern C++ compiler and the GNU Make build utility (a.k.a. “gmake”). These vary by operating system.
+
+
+### Linux
+
+On most systems the GNU Make utility is pre-installed and is the default `make` utility.
+There is usually a pre-installed C++ compiler as well, however, it may not be new enough.
+To check your machine, run commands:
+
+```sh
+g++ --version
+make --version
+```
+
+If these are at least at `g++` version 4.9.3 or later and
+`make` version 3.81 or later, no additional installations are
+necessary. It may still be desirable to update the C++ compiler `g++`, because later versions are faster.
+
+A modern C++ compiler and GNU make are  are bundled into the meta-package `build-essential`,
+and can be installed via the command:
+
+```sh
+sudo apt-get install build-essential
+
+# then rerun checks
+g++ --version
+make --version
+```
+
+### Mac
+
+* On Mac, the Clang compiler and GNU Make are included with Xcode, the Apple toolset for software developers.
+Install Xcode from the App Store and then run command:\
+`xcode-select --install`
+
+
+### Windows
+
+On Windows, there are two ways to get a Stan-compatible C++ toolchain:
+
+* Use the conda installer for CmdStan, CmdStanPy or CmdStanR or RStan, since these packages all include the required toolchain.
+
+* Get [Rtools](https://cran.r-project.org/bin/windows/Rtools/){target="_blank"}
+which includes a C++17 compiler, GNU Make for windows, and a few Unix utilities.\
+CmdStanR users can call the internal function `cmdstanr:::install_toolchain`.\
+CmdStanPy provides both the function `cmdstanpy::get_cxx_toolchain` and command line script `get_cxx_toolchain`.
+
+
+## R Users:  Install CmdStanR
+
+All Stan R packages, including CmdStanR, are available from RUniverse.
+
+In a fresh R session, run this command
+
+```r
+install.packages(c("cmdstanr", "posterior", "loo", "bayesplot"),
+                           repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
+```
+
+Next, use CmdStanR to download, build CmdStan
+
+```r
+library(cmdstanr)
+install_cmdstan()
+
+# check the installation
+cmdstan_version()
+cmdstan_path()
+```
+
+See CmdStanR documentation:  https://mc-stan.org/cmdstanr/articles/cmdstanr.html#installing-cmdstan
+
+
+## Python Users:  Install CmdStanPy
+
+### Install from PyPi
+
+```python
+pip install cmdstanpy
+```
+
+CmdStanPy provides the function `cmdstanpy.install_cmdstan()` which downloads
+CmdStan from GitHub and builds the CmdStan utilities.
+It can be can be called from within Python or from the command line.
+The default install location is a hidden directory in the user's `$HOME` directory named `.cmdstan`.
+This directory will be created as needed by the `install_cmdstan()` function.
+
+```python
+import cmdstanpy
+cmdstanpy.install_cmdstan()
+```
+
+
+### Install from conda-forge
+
+If you use conda, you can install CmdStanPy and the underlying CmdStan components from the conda-forge repository.
+If you want to create a new conda environment (recommended):
+
+```python
+conda create -n stan -c conda-forge cmdstanpy
+conda activate stan
+```
+
+If you want to install into your existing environment:
+
+```python
+conda install -c conda-forge cmdstanpy
+```
+
+By default, the latest release of CmdStan is installed.
+See CmdStanPy documentation: https://mc-stan.org/cmdstanpy/installation.html

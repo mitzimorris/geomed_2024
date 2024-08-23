@@ -10,7 +10,9 @@ format:
     toc-location: left
 ---
 
-For this workshop, we will be using the R and Python interfaces `CmdStanR` and `CmdStanPy`, respectively.
+For this workshop, we are using the CmdStan-based interfaces CmdStanR and CmdStanPy.
+Please install the interface for your preferred language.
+
 
 ## Prerequisites: C++ Toolchain
 
@@ -23,7 +25,7 @@ On most systems the GNU Make utility is pre-installed and is the default `make` 
 There is usually a pre-installed C++ compiler as well, however, it may not be new enough.
 To check your machine, run commands:
 
-```sh
+```bash
 g++ --version
 make --version
 ```
@@ -35,7 +37,7 @@ necessary. It may still be desirable to update the C++ compiler `g++`, because l
 A modern C++ compiler and GNU make are  are bundled into the meta-package `build-essential`,
 and can be installed via the command:
 
-```sh
+```bash
 sudo apt-get install build-essential
 
 # then rerun checks
@@ -62,7 +64,7 @@ CmdStanR users can call the internal function `cmdstanr:::install_toolchain`.\
 CmdStanPy provides both the function `cmdstanpy::get_cxx_toolchain` and command line script `get_cxx_toolchain`.
 
 
-## R Users:  Install CmdStanR
+## CmdStanR Installation Instructions
 
 All Stan R packages, including CmdStanR, are available from RUniverse.
 
@@ -87,7 +89,24 @@ cmdstan_path()
 See CmdStanR documentation:  https://mc-stan.org/cmdstanr/articles/cmdstanr.html#installing-cmdstan
 
 
-## Python Users:  Install CmdStanPy
+To check your work, compile and run the example model included with the CmdStan distribution.
+
+```r
+library(cmdstanr)
+stan_file <- file.path(cmdstan_path(), "examples", "bernoulli", "bernoulli.stan")
+data_file <- file.path(cmdstan_path(), "examples", "bernoulli", "bernoulli.data.json")
+
+bernoulli_mod <- cmdstan_model(stan_file=stan_file)
+bernoulli_fit <- bernoulli_mod$sample(data=data_file)
+
+bernoulli_fit
+```
+
+
+## CmdStanPy Installation Instructions
+
+CmdStanPy is available both through [PyPi](pypi.org) as well as from [conda-forge](https://conda-forge.org/).
+
 
 ### Install from PyPi
 
@@ -125,3 +144,16 @@ conda install -c conda-forge cmdstanpy
 
 By default, the latest release of CmdStan is installed.
 See CmdStanPy documentation: https://mc-stan.org/cmdstanpy/installation.html
+
+To check your work, compile and run the example model included with the CmdStan distribution.
+
+```python
+import os
+from cmdstanpy import CmdStanModel, cmdstan_path
+stan_file = os.path.join(cmdstan_path(), 'examples', 'bernoulli', 'bernoulli.stan')
+data_file = os.path.join(cmdstan_path(), 'examples', 'bernoulli', 'bernoulli.data.json')
+
+bernoulli_mod = CmdStanModel(stan_file=stan_file)
+bernoulli_fit = bernoulli_mod.sample(data=data_file)
+bernoulli_fit.summary()
+```

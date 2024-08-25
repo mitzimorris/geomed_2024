@@ -1,0 +1,250 @@
+---
+title: Stan for Spatial Models Software Setup
+subtitle: Instructions for GeoMed Workshop
+
+format:
+  html:
+    css: theming/quarto_styles.css 
+    syntax-definitions:
+      - theming/stan.xml
+    toc: true
+    toc-location: left
+---
+
+## Prerequisites:  C++ Toolchain
+
+Compiling a Stan program requires a modern C++ compiler and the GNU Make build utility (a.k.a. “gmake”). These vary by operating system.
+
+
+### Linux
+
+On most systems the GNU Make utility is pre-installed and is the default `make` utility.
+There is usually a pre-installed C++ compiler as well, however, it may not be new enough.
+To check your machine, run commands:
+
+```bash
+g++ --version
+make --version
+```
+
+If these are at least at `g++` version 4.9.3 or later and
+`make` version 3.81 or later, no additional installations are
+necessary. It may still be desirable to update the C++ compiler `g++`, because later versions are faster.
+
+A modern C++ compiler and GNU make are  are bundled into the meta-package `build-essential`,
+and can be installed via the command:
+
+```bash
+sudo apt-get install build-essential
+
+# then rerun checks
+g++ --version
+make --version
+```
+
+### Mac
+
+On Mac, the C++ compiler and GNU Make are included with Xcode, the Apple toolset for software developers.
+To check if you have the Clang C++ compiler:
+
+```bash
+clang --version
+```
+
+If this command fails, then install Xcode via the following command
+
+```bash
+xcode-select --install
+```
+
+::: {.callout-note}
+We don't recommend trying to use the GNU C++ compiler, available via Homebrew,
+based on the number of reports of installation difficulties from Mac users on GitHub
+as well as the Stan forums.
+:::
+
+
+### Windows
+
+For Windows both CmdStanPy and CmdStanR ensure that Windows installations have the appropriate toolchain
+in one of two ways:
+
+* Conda users can simply install CmdStanR and CmdStanPy from conda-forge; these include the requisite toolchain together with pre-built CmdStan binaries.
+
+* CmdStanPy and CmdStanR provide utilities which will get the latest version of RTools.
+
+
+#### Conda
+
+Conda is a general cross-platform package installer.
+It simplifies the installation process by ensuring that all required libraries and tools are compatible with each other.
+You can either install [miniconda](https://docs.conda.io/en/latest/miniconda.html), a free, minimal installer for conda
+or you can get the full [Anaconda for Windows](https://www.anaconda.com/products/distribution#windows){target="_blank"}.
+
+Once you have an installed version of conda, the package installers for CmdStanPy and CmdStanR will
+also install a C++ toolchain as needed.
+
+#### RTools
+
+[Rtools](https://cran.r-project.org/bin/windows/Rtools/){target="_blank"} contains the utilities needs to compile C++ and Rcpp programs.
+It includes a C++17 compiler, GNU Make for windows, and a few Unix utilities.\
+
+The CmdStanR and CmdStanPy interfaces provide utilities which will install RTools:
+
+* `cmdstanpy::get_cxx_toolchain`, also command line script `get_cxx_toolchain`.
+* `cmdstanr::install_cmdstan` will install RTools automatically (by calling internal function `cmdstanr:::install_toolchain`).
+
+
+## CmdStanR Installation Instructions
+
+All Stan R packages, including CmdStanR, are available from RUniverse.
+
+In a fresh R session, run this command
+
+```r
+install.packages(c("cmdstanr", "posterior", "loo", "bayesplot"),
+                           repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
+```
+
+Next, use CmdStanR to download, build CmdStan
+
+```r
+library(cmdstanr)
+install_cmdstan()
+
+# check the installation
+cmdstan_version()
+cmdstan_path()
+```
+
+See CmdStanR documentation:  https://mc-stan.org/cmdstanr/articles/cmdstanr.html#installing-cmdstan
+
+
+To check your work, compile and run the example model included with the CmdStan distribution.
+
+```r
+library(cmdstanr)
+stan_file <- file.path(cmdstan_path(), "examples", "bernoulli", "bernoulli.stan")
+data_file <- file.path(cmdstan_path(), "examples", "bernoulli", "bernoulli.data.json")
+
+bernoulli_mod <- cmdstan_model(stan_file=stan_file)
+bernoulli_fit <- bernoulli_mod$sample(data=data_file)
+
+bernoulli_fit
+```
+
+Expected console output for the final command:
+
+```r
+> bernoulli_fit
+ variable  mean median   sd  mad    q5   q95 rhat ess_bulk ess_tail
+    lp__  -7.28  -6.99 0.74 0.33 -8.82 -6.75 1.00     1883     2193
+    theta  0.25   0.24 0.12 0.12  0.07  0.47 1.00     1260     1458
+```
+
+### Troubleshooting
+
+If installing CmdStanR into your current R environment fails, the fastest way to a CmdStanR installation is to use [Anaconda or miniconda](https://docs.anaconda.com/working-with-conda/packages/using-r-language/)
+and [create a new environment for CmdStanR](https://docs.anaconda.com/working-with-conda/packages/using-r-language/#creating-a-new-environment-with-r).
+
+(@) Install miniconda (installs faster than Anaconda).\
+Installation instructions: [https://docs.anaconda.com/miniconda/miniconda-install/](https://docs.anaconda.com/miniconda/miniconda-install/)
+
+(@) Open a new terminal window, check that conda has been installed\
+```bash
+conda --version
+```
+
+
+(@) Create a new environment for R\
+```r
+conda create -n cmdstanr -c conda-forge r-base r-essentials r-cmdstanr
+conda activate cmdstanr
+```
+
+(@) From within this conda environment, i.e., the same terminal session, start R or R Studio Desktop and try again to run the following:\
+```r
+library(cmdstanr)
+stan_file <- file.path(cmdstan_path(), "examples", "bernoulli", "bernoulli.stan")
+data_file <- file.path(cmdstan_path(), "examples", "bernoulli", "bernoulli.data.json")
+
+bernoulli_mod <- cmdstan_model(stan_file=stan_file)
+bernoulli_fit <- bernoulli_mod$sample(data=data_file)
+
+bernoulli_fit
+```
+
+
+## CmdStanPy Installation Instructions
+
+CmdStanPy is available both through [PyPi](pypi.org) as well as from [conda-forge](https://conda-forge.org/).
+
+### Install from PyPi
+
+```python
+pip install cmdstanpy
+```
+
+CmdStanPy provides the function `cmdstanpy.install_cmdstan()` which downloads
+CmdStan from GitHub and builds the CmdStan utilities.
+It can be can be called from within Python or from the command line.
+The default install location is a hidden directory in the user's `$HOME` directory named `.cmdstan`.
+This directory will be created as needed by the `install_cmdstan()` function.
+
+```python
+import cmdstanpy
+cmdstanpy.install_cmdstan()
+```
+
+
+### Install from conda-forge
+
+If you use conda, you can install CmdStanPy and the underlying CmdStan components from the conda-forge repository.
+If you want to create a new conda environment (recommended):
+
+```python
+conda create -n stan -c conda-forge cmdstanpy
+conda activate stan
+```
+
+If you want to install into your existing environment:
+
+```python
+conda install -c conda-forge cmdstanpy
+```
+
+By default, the latest release of CmdStan is installed.
+For further details, see the [CmdStanPy installation instructions](https://mc-stan.org/cmdstanpy/installation.html).
+
+
+### Check the installation
+
+To check your work, compile and run the example model included with the CmdStan distribution.
+
+```python
+import os
+from cmdstanpy import CmdStanModel, cmdstan_path
+stan_file = os.path.join(cmdstan_path(), 'examples', 'bernoulli', 'bernoulli.stan')
+data_file = os.path.join(cmdstan_path(), 'examples', 'bernoulli', 'bernoulli.data.json')
+
+bernoulli_mod = CmdStanModel(stan_file=stan_file)
+bernoulli_fit = bernoulli_mod.sample(data=data_file)
+bernoulli_fit.summary().round(3)
+```
+
+Expected console output for the final command:
+
+```python
+ bernoulli_fit.summary().round(3)
+        Mean   MCSE  StdDev     5%    50%   95%    N_Eff  N_Eff/s  R_hat
+lp__  -7.274  0.020   0.736 -8.777 -6.981 -6.75  1382.10  53157.7  1.002
+theta  0.248  0.003   0.119  0.079  0.234  0.47  1420.84  54647.8  1.000
+```
+
+
+## Install Spatial and DataViz Packages
+
+* R:  sf, spdep, tidyverse, ggplot2
+
+* Python: libpysal, geopandas, numpy, pandas, plotnine, splot, matplotlib
+

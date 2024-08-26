@@ -11,6 +11,7 @@ format:
     toc-location: left
 ---
 
+
 ## Prerequisites:  C++ Toolchain
 
 Compiling a Stan program requires a modern C++ compiler and the GNU Make build utility (a.k.a. “gmake”). These vary by operating system.
@@ -96,6 +97,7 @@ The CmdStanR and CmdStanPy interfaces provide utilities which will install RTool
 
 
 ## CmdStanR Installation Instructions
+
 
 All Stan R packages, including CmdStanR, are available from RUniverse.
 
@@ -244,7 +246,24 @@ theta  0.248  0.003   0.119  0.079  0.234  0.47  1420.84  54647.8  1.000
 
 ## Install Spatial and DataViz Packages
 
-* R:  sf, spdep, tidyverse, ggplot2
+Using the appropriate package installer, install the following packages, as needed
 
-* Python: libpysal, geopandas, numpy, pandas, plotnine, splot, matplotlib
 
+|                | **R**          | **Python**                         |
+|----------------|----------------|------------------------------------|
+| **GIS Data**   |  [`sf`](https://r-spatial.github.io/sf/), [`spdep`](https://r-spatial.github.io/spdep/) | [`geopandas`](https://geopandas.org/en/stable/), [`libpysal`](https://pysal.org/libpysal/)         |
+| **Data**       | `tidyverse`    | `numpy`, `pandas`                  |
+| **Plotting**   | `ggplot2`      | [`plotnine`](https://plotnine.org/), [`splot`](https://pysal.org/notebooks/viz/splot/intro.html), `matplotlib`  |
+
+
+## Notebook Viewers
+
+R users should have [R Studio Desktop](https://posit.co/download/rstudio-desktop/) installed on their machine.
+
+
+Python users should have [Project Jupyter](https://jupyter.org/install) installed.
+We recommend using conda and installing a JupyterLab environment via conda-forge.
+
+```bash
+conda install -c conda-forge jupyterlab.
+```

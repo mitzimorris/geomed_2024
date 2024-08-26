@@ -1,0 +1,224 @@
+---
+title: "Spatial Data Analysis in Python and R"
+format:
+  html:
+    css: theming/quarto_styles.css 
+    syntax-definitions:
+      - theming/stan.xml
+    toc: true
+    toc-location: left
+execute:
+  eval: false
+  keep-ipynb: true
+---
+
+
+## Example Dataset:  NYC traffic accidents, localized to US Census blocks
+
+The dataset we're using is that used in the analysis published in 2019
+[Bayesian Hierarchical Spatial Models: Implementing the Besag York Mollié Model in Stan](https://www.sciencedirect.com/science/article/pii/S1877584518301175).
+
+The data consists of motor vehicle collisions in New York City,
+as recorded by the NYC Department of Transportation, between the years 2005-2014,
+restricted to collisions involving school age children 5-18 years of age as pedestrians.
+
+Each crash was localized to the US Census tract in which it occurred, using boundaries from the 2010 United States Census,
+using the [2010 Census block map for New York City](https://data.cityofnewyork.us/City-Government/2010-Census-Blocks/v2h8-6mxf)
+The US Census tract is the lowest level of Census data resolution.
+A tract contains between 2,500 and 8,000 residents and boundaries that follow visible features.
+According to the [Census Bureau](https://www2.census.gov/geo/pdfs/reference/GARM/Ch10GARM.pdf)
+
+> When first established, census tracts are to be as homogeneous as possible with respect to population characteristics, economic status, and living condition
+
+Study Data, per tract:
+
+* collision count
+* youth age population
+* Census Bureau's American Community Survey (ACS) data for 5-year estimates of:
+  + median household income
+  + the percentage of commuters who traveled to work by means other than a private vehicle (i.e., by walking, bicycling, or using public transportation)
+  + an index of social fragmentation based on ACS estimates of vacant housing units, householders living alone, non-owner occupied housing units, and population having moved within the previous year.
+  + street level annual average daily traffic (AADT) data from the New York State Department of Transportation (assigning each census tract the maximum AADT value over the streets in that tract).
+* US Census data per tract, including areal geometry (bounding polygons)
+
+
+## Spatial Data manipulation in R and Python
+
+Geographic information systems (GIS) data is any item which has a geographic location, either a single point or a set of bounding polygons.
+Cartographic data (maps) are encoded as a set of records, one per map region.  The [shapefile format](https://en.wikipedia.org/wiki/Shapefile) is an open specification used to insure interoperatility among GIS software packages.  When items in a dataset contain location labels, it is necessary to obtain a set of shapefiles for the corresponding map.
+To compute with GIS data, we need packages which can do the geographic math.
+
+- [GeoPandas](https://geopandas.org/en/stable/) extends the datatypes used by pandas to allow spatial operations on geometric types,
+which are equivalent to the operations provided by R's [`sf`](https://r-spatial.github.io/sf/) package.
+- [`libpysal`](https://pysal.org/libpysal/) is spatial analysis package which can analyze distance between locations; operations equivalent to R's [`spdep`](https://r-spatial.github.io/spdep/) package.
+
+To visualize GIS data, we need to be able to draw maps and spatial graphs.
+
+- In R, ggplot2 can produce beautiful maps for GIS data.
+- The python equivalent of R's `ggplot2` is [`plotnine`](https://plotnine.org/).
+- The [`splot`](https://pysal.org/notebooks/viz/splot/intro.html) provides additional plotting functions for spatial graph networks.
+
+
+## Preliminary Data Analysis
+
+
+### Notebook Startup: Load Packages / Libraries
+
+**Python**
+```{python}
+# import all libraries used in this notebook
+import os
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import libpysal as sa
+import matplotlib as plt
+import splot as splt
+import plotnine as p9
+%matplotlib inline
+
+
+# suppress plotnine warnings
+import warnings
+warnings.filterwarnings('ignore')
+
+# setup plotnine look and feel global
+p9.theme_set(
+  p9.theme_grey() + 
+  p9.theme(text=p9.element_text(size=10),
+        plot_title=p9.element_text(size=14),
+        axis_title_x=p9.element_text(size=12),
+        axis_title_y=p9.element_text(size=12),
+        axis_text_x=p9.element_text(size=8),
+        axis_text_y=p9.element_text(size=8)
+       )
+)
+
+# useful themes
+xlabels_90 = p9.theme(axis_text_x = p9.element_text(angle=90, hjust=1))
+map_theme =  p9.theme(figure_size=(7,6),
+                 axis_text_x=p9.element_blank(),
+                 axis_ticks_x=p9.element_blank(),
+                 axis_text_y=p9.element_blank(),
+                 axis_ticks_y=p9.element_blank())
+```
+
+**R**
+```{r}
+library(sf)
+library(spdep) |> suppressPackageStartupMessages()
+library(ggplot2)
+library(tidyverse) |> suppressPackageStartupMessages()
+```
+
+
+
+### Load study data
+
+The study data and GIS data have been assembled into a single GeoJSON file.
+Let's load the dataset and run a few preliminary visualizations.
+
+**Python**
+```{python}
+nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
+print(type(nyc_geodata))
+print(nyc_geodata.columns)
+print(nyc_geodata['BoroName'].value_counts())
+```
+
+**R**
+```{r}
+nyc_geodata = st_read("data/nyc_study.geojson")
+class(nyc_geodata)
+names(nyc_geodata)
+table(nyc_geodata$BoroName)
+```
+
+### Plot population per tract, accidents per tract.
+
+**Python**
+```{python}
+(
+    p9.ggplot(nyc_geodata, mapping=p9.aes(x='kids_per_sq_mi', y='count')) +
+    p9.geom_point() +
+    p9.geom_jitter(width=0.001, alpha=0.2) +
+    p9.geom_smooth(method="lm", color="blue")
+)
+```
+
+**R**
+```{r}
+ggplot(nyc_geodata, aes(x = kids_per_sq_mi, y = count)) +
+  geom_point() + 
+  geom_jitter(width = 0.001, alpha = 0.2) + 
+  geom_smooth(method = "lm", color = "blue")
+```
+
+### Visualize by Map Areas
+
+#### Traffic accidents - kids hit by cars
+
+**Python**
+```{python}
+(
+    p9.ggplot(nyc_geodata) +
+    p9.geom_map(p9.aes(fill='count')) +
+    p9.scale_fill_gradient(low="lightblue", high="red") +
+    p9.labs(title="NYC School-Age Traffic Accident Victims by Census Tract") +
+    map_theme
+)
+```
+
+**R**
+```{r}
+ggplot(data = nyc_geodata) +
+geom_sf(aes(fill = count)) +
+scale_fill_gradient(low = "lightblue", high = "red") +
+labs(title = "NYC School-Age Traffic Accident Victims by Census Tract")
+```
+
+#### Population: raw counts, density per square mile
+
+**Python**
+```{python}
+plot_pop = (
+    p9.ggplot(nyc_geodata) +
+    p9.geom_map(p9.aes(fill='kid_pop')) +
+    p9.scale_fill_gradient(low="lightblue", high="red") +
+    p9.labs(title = "NYC Population Ages 5-18 per Census Tract") +
+    map_theme
+)
+
+plot_pop_density = (
+    p9.ggplot(nyc_geodata) +
+    p9.geom_map(p9.aes(fill='kids_per_sq_mi')) +
+    p9.scale_fill_gradient(low="lightblue", high="red") +
+    p9.labs(title = "NYC Population Density Ages 5-18 per Census Tract",
+         subtitle = "Density measured as population per square mile") +
+    map_theme	 
+)
+
+plot_pop.show()
+plot_pop_density.show()
+```
+
+**R**
+```{r}
+ggplot(data = nyc_geodata) +
+geom_sf(aes(fill = kid_pop)) +
+scale_fill_gradient(low = "lightblue", high = "red") +
+    labs(title = "NYC Population Ages 5-18 Density by Census Tract",
+         subtitle = "Density measured as population per square mile")
+
+
+ggplot(data = nyc_geodata) +
+geom_sf(aes(fill = kids_per_sq_mi)) +
+scale_fill_gradient(low = "lightblue", high = "red") +
+    labs(title = "NYC Population Ages 5-18 Density by Census Tract",
+         subtitle = "Density measured as population per square mile")
+```
+
+
+##  Exercises
+
+Visualize `med_hh_inc` (median household income), `frag_index` (fragmentation index), and `traffic`.

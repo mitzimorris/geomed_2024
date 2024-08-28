@@ -2,15 +2,16 @@
 title: "Spatial Data Analysis in Python and R"
 format:
   html:
-    css: theming/quarto_styles.css 
+    css: ../theming/quarto_styles.css 
     syntax-definitions:
-      - theming/stan.xml
+      - ../theming/stan.xml
     toc: true
     toc-location: left
 execute:
   eval: false
   keep-ipynb: true
 ---
+
 
 ## Example Dataset:  NYC traffic accidents, localized to US Census blocks
 
@@ -65,6 +66,7 @@ census tract the maximum AADT value of its underlying streets in 2015.
 | Standardized social fragmentation index               | -0.1   | -6.7   | 0.0      | 18.7      |
 | Traffic Volume (AADT), 2015                           | 19,178 | 843    | 37,248   | 276,476   |
 
+
 ## Spatial Data manipulation in R and Python
 
 Geographic information systems (GIS) data is any item which has a geographic location, either a single point or a set of bounding polygons.
@@ -81,45 +83,11 @@ To visualize GIS data, we need to be able to draw maps and spatial graphs.
 - The python equivalent of R's `ggplot2` is [`plotnine`](https://plotnine.org/).
 - The [`splot`](https://pysal.org/notebooks/viz/splot/intro.html) provides additional plotting functions for spatial graph networks.
 
+
 ## Preliminary Data Analysis
 
+
 ### Notebook Startup: Load Packages / Libraries
-
-**Python**
-```{python}
-# import all libraries used in this notebook
-import os
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-import libpysal as sa
-import matplotlib as plt
-import splot as splt
-import plotnine as p9
-%matplotlib inline
-
-# suppress plotnine warnings
-import warnings
-warnings.filterwarnings('ignore')
-# setup plotnine look and feel global
-p9.theme_set(
-  p9.theme_grey() + 
-  p9.theme(text=p9.element_text(size=10),
-        plot_title=p9.element_text(size=14),
-        axis_title_x=p9.element_text(size=12),
-        axis_title_y=p9.element_text(size=12),
-        axis_text_x=p9.element_text(size=8),
-        axis_text_y=p9.element_text(size=8)
-       )
-)
-# useful themes
-xlabels_90 = p9.theme(axis_text_x = p9.element_text(angle=90, hjust=1))
-map_theme =  p9.theme(figure_size=(7,6),
-                 axis_text_x=p9.element_blank(),
-                 axis_ticks_x=p9.element_blank(),
-                 axis_text_y=p9.element_blank(),
-                 axis_ticks_y=p9.element_blank())
-```
 
 **R**
 ```{r}
@@ -133,21 +101,14 @@ library(tidyverse) |> suppressPackageStartupMessages()
 
 The study data and GIS data have been assembled into a single GeoJSON file.
 
-**Python**
-```{python}
-nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
-print(type(nyc_geodata))
-print(nyc_geodata.columns)
-print(nyc_geodata['BoroName'].value_counts())
-```
-
 **R**
 ```{r}
-nyc_geodata = st_read("data/nyc_study.geojson")
+nyc_geodata = st_read("../data/nyc_study.geojson")
 class(nyc_geodata)
 names(nyc_geodata)
 table(nyc_geodata$BoroName)
 ```
+
 
 #### Traffic accidents - kids hit by cars
 
@@ -155,41 +116,21 @@ Plot the observed outcome `counts`.
 
 *Note:* Count data is properly plotted as a bar chart, not histogram plus density, but the visualization is useful.
 
-**Python**
-```{python}
-(
-    p9.ggplot(data=nyc_geodata, mapping=p9.aes(x='count')) +
-    p9.geom_histogram(p9.aes(y=p9.after_stat('density')), bins=58, color='DarkBlue') +
-    p9.geom_density(color="red", size=1) +
-    p9.ggtitle("Distribution of accidents per tract") +
-    p9.xlab("Accidents") + p9.ylab("")
-)
-```
-
 **R**
 ```{r}
 ggplot(data = nyc_geodata, aes(x = count)) +
   geom_histogram(aes(y = after_stat(density)), bins = 58, color = 'DarkBlue', fill = "skyblue", alpha = 0.7) +
-  geom_density(color = "red", size = 1) +
+  geom_density(color = "red", linewidth = 1) +
   ggtitle("Distribution of accidents per tract") +
   xlab("accidents") +
   ylab("")
 ```
 
+
+
 ### Visualize by Map Areas
 
 #### Show areal map, fill color is accidents per tract
-
-**Python**
-```{python}
-(
-    p9.ggplot(nyc_geodata) +
-    p9.geom_map(p9.aes(fill='count')) +
-    p9.scale_fill_gradient(low="lightblue", high="red") +
-    p9.labs(title="NYC School-Age Traffic Accident Victims by Census Tract") +
-    map_theme
-)
-```
 
 **R**
 ```{r}
@@ -201,17 +142,6 @@ labs(title = "NYC School-Age Traffic Accident Victims by Census Tract")
 
 #### Show areal map, fill color is kid population per tract
 
-**Python**
-```{python}
-(
-    p9.ggplot(nyc_geodata) +
-    p9.geom_map(p9.aes(fill='kid_pop')) +
-    p9.scale_fill_gradient(low="lightblue", high="red") +
-    p9.labs(title = "NYC Population Ages 5-18 per Census Tract") +
-    map_theme
-)
-```
-
 **R**
 ```{r}
 ggplot(data = nyc_geodata) +
@@ -222,18 +152,6 @@ ggplot(data = nyc_geodata) +
 
 #### Population: raw counts, density per square mile
 
-**Python**
-```{python}
-(
-    p9.ggplot(nyc_geodata) +
-    p9.geom_map(p9.aes(fill='kids_per_sq_mi')) +
-    p9.scale_fill_gradient(low="lightblue", high="red") +
-    p9.labs(title = "NYC Population Density Ages 5-18 per Census Tract",
-         subtitle = "Density measured as population per square mile") +
-    map_theme	 
-)
-```
-
 **R**
 ```{r}
 ggplot(data = nyc_geodata) +
@@ -242,6 +160,7 @@ ggplot(data = nyc_geodata) +
     labs(title = "NYC Population Ages 5-18 Density by Census Tract",
          subtitle = "Density measured as population per square mile")
 ```
+
 
 ##  Exercises
 

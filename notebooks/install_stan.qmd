@@ -4,9 +4,9 @@ subtitle: Instructions for GeoMed Workshop
 
 format:
   html:
-    css: theming/quarto_styles.css 
+    css: ../theming/quarto_styles.css 
     syntax-definitions:
-      - theming/stan.xml
+      - ../theming/stan.xml
     toc: true
     toc-location: left
 ---
@@ -100,6 +100,7 @@ The CmdStanR and CmdStanPy interfaces provide utilities which will install RTool
 
 
 All Stan R packages, including CmdStanR, are available from RUniverse.
+Install CmdStanR as well as downstream analysis packages `posterior`, `loo`, `bayesplot`.
 
 In a fresh R session, run this command
 
@@ -198,6 +199,12 @@ import cmdstanpy
 cmdstanpy.install_cmdstan()
 ```
 
+Then install the [`ArviZ`](https://python.arviz.org/en/stable/index.html) package for downstream analsys.
+
+```python
+pip install arviz
+```
+
 
 ### Install from conda-forge
 
@@ -218,6 +225,11 @@ conda install -c conda-forge cmdstanpy
 By default, the latest release of CmdStan is installed.
 For further details, see the [CmdStanPy installation instructions](https://mc-stan.org/cmdstanpy/installation.html).
 
+Then install the [`ArviZ`](https://python.arviz.org/en/stable/index.html) package for downstream analsys.
+
+```python
+conda install -c conda-forge arviz
+```
 
 ### Check the installation
 

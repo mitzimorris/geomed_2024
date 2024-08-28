@@ -14,6 +14,8 @@ format:
     include-in-header: preamble.tex
     navigation: horizontal
     dev: png 
+    linkcolor: "DarkBlue"
+    urlcolor: "DarkBlue"
 ---
 
 # Session 1 Overview
@@ -225,10 +227,11 @@ functions {
 \tightlist
 * Variables have strong, static types
   + Strong:  only values of that type will be assignable to the variable,\
-(type promotion allowed, e.g., `int` to `real`, `complex`).
+(type promotion allowed, e.g., `int` to `real`, `complex`)
   + Static: variable type is constant throughout program
-  + Rich set of [vector and matrix types](https://mc-stan.org/docs/reference-manual/types.html#vector-and-matrix-data-types)
-  + Variable constraints include bounds, affine transforms of scalars 
+  + Types: [vector, row_vector, matrix](https://mc-stan.org/docs/reference-manual/types.html#vector-and-matrix-data-types), [complex](https://mc-stan.org/docs/reference-manual/types.html#complex-numerical-data-type),
+[array](https://mc-stan.org/docs/reference-manual/types.html#array-data-types.section), and [tuple](https://mc-stan.org/docs/reference-manual/types.html#tuple-data-type)
+  + Variables can be declared with constraints on [upper and/or lower bounds](https://mc-stan.org/docs/reference-manual/types.html#variable-types-vs.-constraints-and-sizes)
   
 * Motivation
   + Static types make programs easier to comprehend, debug, and maintain
@@ -238,13 +241,41 @@ functions {
 \vspace*{4pt}
 \fontsize{9pt}{9.4}\selectfont
 ```stan
-  int<lower=0> N, n_grade;  // constraint applies to both N, n_grade
-  array[N] int<lower=0, upper=n_grade> grade;
-  vector<lower=-1, upper=1>[3] rho;
-  matrix[M, N] B;
+  int<lower=0> N, N_time;                     // constraint applies to both N, N_time
+  vector[3]<lower=0> sigma;
+  array[3] matrix[M, N] some_xs;
+  array[N] int<lower=0, upper=N_time> time;  // use arrays for structured int data 
 ```
+\normalsize
 
+# The Stan Language
 
+The `model` block
+
+\tightlist
+* defines the joint log probability density function given parameters
+* this function is the sum of all distribution and log probability increment statements
+in the model block
+
+\vspace*{8pt}
+[Distribution statements](https://mc-stan.org/docs/reference-manual/statements.html#distribution-statements.section)
+\fontsize{9pt}{9.4}\selectfont
+```stan
+y ~ normal(mu, sigma);
+mu ~ normal(0, 10);
+sigma ~ normal(0, 1);
+```
+\normalsize
+
+\vspace*{8pt}
+[Log probability increment statements](https://mc-stan.org/docs/reference-manual/statements.html#log-probability-increment-vs.-distribution-statement)
+\fontsize{9pt}{9.4}\selectfont
+```stan
+target += normal_lpdf(y | mu, sigma);
+target += normal_lpdf(mu | 0, 10);
+target += normal_lpdf(sigma | 0, 1);
+```
+\normalsize
 
 
 # Stan Example: Laplace's Model of Birth Rate by Sex
@@ -337,29 +368,107 @@ Laplace "morally certain" boys more prevalent
 
 # Install Stan
 
-\tightlist
+
 *  If you don't already have Stan running on your machine, 10 minutes to get it working now.
    + *If you already have Stan running on your machine, please help your neighbor.*
 
 \vspace*{8pt}
-* See notebook:  ....
+* See handout:  `install_stan.html`
 
 
-\vspace*{8pt}
-* Install package, build CmdStan (as needed)
+# Notebook Zero: Case Study Areal Data 
 
-\vspace*{8pt}
-* Compile, run Laplace Stan
+Dataset taken from
+[Bayesian Hierarchical Spatial Models: Implementing the Besag York Mollié Model in Stan](https://www.sciencedirect.com/science/article/pii/S1877584518301175).
 
-\vspace*{8pt}
-* Bonus activity: Modify Laplace Stan
-  + Change `transformed data` block to `data block`
-  + Run with list of inputs: {"male",  "female"}
+\tightlist
+* Aggregated counts of car vs. child traffic accidents, localized to US Census tract.  Per-tract data includes:
+  + raw counts of accidents, population
+  + measures of foot traffic, car traffic
+  + socio-economic indicators:  median income, neighborhood transiency
+
+* Handouts
+  * `spatial_data.html`
+  * R version `spatial_data.Rmd`
+  * Python version: `spatial_data.ipynb`
 
 
-# Notebook One:  Multi-level Regression Models in Stan
+# Poisson Regression for Areal Data
 
-Poisson regression:  disease rate per area, complete data:  all events recorded, population known
+Stan's Poisson-log Distribution
+
+- **`poisson_log`** distribution uses the log rate as a parameter
+
+- don't need to exponentiate, better numerical stability
+
+- **`poisson_log_rng`** pseudo-random number generator function
+  + Poisson variate is an **integer**,  largest integer value is $2^{30}$,
+argument to `poisson_log_rng` must be less than $30 \log 2$, $\approx 28$
+
+  + used in the data generating model
+
+# Base Model:  Poisson Regression
+
+##### Data
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+  int<lower=0> N;
+  array[N] int<lower=0> y; // count outcomes
+  vector<lower=0>[N] E; // exposure
+  int<lower=1> K; // num covariates
+  matrix[N, K] x; // design matrix
+```
+\normalsize
+
+##### Parameters
+\fontsize{9pt}{9.4}\selectfont
+```stan
+  real beta0; // intercept
+  vector[K] betas; // covariates
+```
+\normalsize
+
+##### Distribution statement (likelihood)
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+  y ~ poisson_log(log(E) + beta0 + X * betas);
+```
+\normalsize
+
+
+# Stan Program `poisson.stan`
+
+\fontsize{9pt}{9.4}\selectfont
+```
+data {
+  int<lower=0> N;
+  array[N] int<lower=0> y; // count outcomes
+  vector<lower=0>[N] E; // exposure
+  int<lower=1> K; // num covariates
+  matrix[N, K] x; // design matrix
+}
+transformed data {
+  vector[N] log_E = log(E);
+}
+parameters {
+  real beta0; // intercept
+  vector[K] betas; // covariates
+}
+model {
+  y ~ poisson_log(log_E + beta0 + x * betas);  // likelihood
+  beta0 ~ std_normal();   betas ~ std_normal();  // priors
+}
+```
+\normalsize
+
+
+
+# Notebook One:  Regression Models in Stan
+
+This notebook follows the Bayesian Workflow recommendations by starting with a too-simple model
+and then expanding it in multiple ways.
 
 # Programming Pitfalls
 
@@ -374,7 +483,7 @@ Poisson regression:  disease rate per area, complete data:  all events recorded,
 
 # Notebook Two: ICAR model
 
-
+This notebook shows how to code the ICAR model for spatial smoothing (Besag 1973) in Stan.
 
 # References
 
@@ -384,6 +493,7 @@ Poisson regression:  disease rate per area, complete data:  all events recorded,
 * \href {https://www.usgs.gov/faqs/what-geographic-information-system-gis}{Geographic Information System}(GIS)
 * \href{https://github.com/mitzimorris/ljubljiana_lecture/blob/main/data_prep_spatial_maps.ipynb}{Map-making with Plotnine}
 
-* \{https://www.uio.no/studier/emner/matnat/math/STK4051/v23/timeplan/lecture_12_softwareformcmc.pdf}{Software for MCMC}, a very nice set of course notes from Odd Kolbjørnsen, Spring 2023, Oslo Uni.
-
-\textit{Questions?}
+* Course notes: *Software for MCMC* from Odd Kolbjørnsen, Spring 2023, Oslo Uni\
+\fontsize{9pt}{9.4}\selectfont
+www.uio.no/studier/emner/matnat/math/STK4051/v23/timeplan/lecture_12_softwareformcmc.pdf
+\normalsize

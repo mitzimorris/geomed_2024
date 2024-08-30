@@ -358,6 +358,7 @@ pre {
     word-wrap: normal;
     color: var(--bs-dark-warm);
     background-color: var(--stan-bg);
+    font-size: 0.9em;
 }
 pre code {
     white-space: inherit;
@@ -365,6 +366,7 @@ pre code {
     padding: 0;
     color: var(--bs-dark-warm);
     background-color: var(--stan-bg);
+    font-size: 0.9em;
 }
 
 pre.sourceCode {

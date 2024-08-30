@@ -18,11 +18,18 @@ format:
     urlcolor: "DarkBlue"
 ---
 
-# Session 1 Overview
+# Overview
+\vspace*{-20pt}
+
+### Workshop Goal
+
+Learn how to use existing models and develop new ones.
+
+### Outline: Part One
 
 * About Stan
 
-* GLMs in Stan
+* Stan Workflow
 
 * ICAR Model for Spatial Smoothing
 
@@ -119,10 +126,10 @@ determine number of steps on-the-fly (NUTS)
 \tightlist
 * MCMC samples have autocorrelation
 
-* $N_{\mbox{\footnotesize eff}}$ is the number of independent samples with the same estimation power as the $N$ autocorrelated samples.
+* $N_{\mbox{\footnotesize eff}}$ is the number of independent samples with the same estimation power\
+as the $N$ autocorrelated samples.
 
-* We care about **$N_{\mbox{\footnotesize eff}}$ per second**
-  + Effective samples per iteration; iterations per second; 
+* When comparing algorithms, compare $N_{\mbox{\footnotesize eff}}$ **per second**
 
 \vspace{0.05in}
 * Gibbs and Metropolis have
@@ -196,88 +203,6 @@ runs NUTS-HMC sampler, checks inferences.
 and mathematical functions from Stan's math library
   + Efficient, vectorized (almost always)
 
-
-# The Stan Language
-
-A Stan file consists of one or more named program blocks, strictly ordered
-
-\fontsize{9pt}{9.4}\selectfont
-```stan
-functions {
-  // declare, define functions
-} data {
-  // declare input data
-} transformed data {
-   // data variable transforms
-} parameters {
-   // declare (continuous) parameters
-} transformed parameters {
-   // parameter variable transforms
-} model {
-   // compute the log joint distribution
-} generated quantities {
-   // declare, compute quantities of interest
-}
-```
-\normalsize
-
-
-# The Stan Language
-
-\tightlist
-* Variables have strong, static types
-  + Strong:  only values of that type will be assignable to the variable,\
-(type promotion allowed, e.g., `int` to `real`, `complex`)
-  + Static: variable type is constant throughout program
-  + Types: [vector, row_vector, matrix](https://mc-stan.org/docs/reference-manual/types.html#vector-and-matrix-data-types), [complex](https://mc-stan.org/docs/reference-manual/types.html#complex-numerical-data-type),
-[array](https://mc-stan.org/docs/reference-manual/types.html#array-data-types.section), and [tuple](https://mc-stan.org/docs/reference-manual/types.html#tuple-data-type)
-  + Variables can be declared with constraints on [upper and/or lower bounds](https://mc-stan.org/docs/reference-manual/types.html#variable-types-vs.-constraints-and-sizes)
-  
-* Motivation
-  + Static types make programs easier to comprehend, debug, and maintain
-  + Programming errors can be detected at compile-time
-  + Constrained types catch runtime errors
-
-\vspace*{4pt}
-\fontsize{9pt}{9.4}\selectfont
-```stan
-  int<lower=0> N, N_time;                     // constraint applies to both N, N_time
-  vector[3]<lower=0> sigma;
-  array[3] matrix[M, N] some_xs;
-  array[N] int<lower=0, upper=N_time> time;  // use arrays for structured int data 
-```
-\normalsize
-
-# The Stan Language
-
-The `model` block
-
-\tightlist
-* defines the joint log probability density function given parameters
-* this function is the sum of all distribution and log probability increment statements
-in the model block
-
-\vspace*{8pt}
-[Distribution statements](https://mc-stan.org/docs/reference-manual/statements.html#distribution-statements.section)
-\fontsize{9pt}{9.4}\selectfont
-```stan
-y ~ normal(mu, sigma);
-mu ~ normal(0, 10);
-sigma ~ normal(0, 1);
-```
-\normalsize
-
-\vspace*{8pt}
-[Log probability increment statements](https://mc-stan.org/docs/reference-manual/statements.html#log-probability-increment-vs.-distribution-statement)
-\fontsize{9pt}{9.4}\selectfont
-```stan
-target += normal_lpdf(y | mu, sigma);
-target += normal_lpdf(mu | 0, 10);
-target += normal_lpdf(sigma | 0, 1);
-```
-\normalsize
-
-
 # Stan Example: Laplace's Model of Birth Rate by Sex
 
 \vspace{-0.1in}
@@ -348,6 +273,111 @@ $\theta$ is 90\% certain to lie in $(0.509, 0.511)$
 * *Question 2* (Event Probability): Is a boy more likely to be born than a girl?\
 Laplace "morally certain" boys more prevalent
 
+
+# Stan Program File
+
+A Stan program consists of one or more named program blocks, strictly ordered
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+functions {
+  // declare, define functions
+} data {
+  // declare input data
+} transformed data {
+   // transform inputs, define program data
+} parameters {
+   // declare (continuous) parameters
+} transformed parameters {
+   // define derived parameters
+} model {
+   // compute the log joint distribution
+} generated quantities {
+   // define quantities of interest
+}
+```
+\normalsize
+
+# Stan Program Blocks - Execution During Sampling
+
+\tightlist
+* `data`, `transformed data` blocks - executed once on startup
+
+* `parameters` - 
+   + on startup: initialize parameters
+   + at every step of inference algorithm: validate constraints
+
+* `transformed parameters`, `model` blocks - executed every *step* of the sampler
+
+* `generated quantities` - executed every *iteration* of the sampler
+
+\vspace*{4pt}
+* After every sampler interation, program outputs current values of all variables\
+in parameters, transformed parameters, and generated quantities blocks.
+
+
+For efficiency, whenever possible, use `transformed data`, `generated quantities` blocks
+instead of  `transformed parameters` or `model` blocks.
+
+
+
+# The Stan Language
+
+\tightlist
+* Variables have strong, static types
+  + Strong:  only values of that type will be assignable to the variable,\
+(type promotion allowed, e.g., `int` to `real`, `complex`)
+  + Static: variable type is constant throughout program
+  + Types: [vector, row_vector, matrix](https://mc-stan.org/docs/reference-manual/types.html#vector-and-matrix-data-types), [complex](https://mc-stan.org/docs/reference-manual/types.html#complex-numerical-data-type),
+[array](https://mc-stan.org/docs/reference-manual/types.html#array-data-types.section), and [tuple](https://mc-stan.org/docs/reference-manual/types.html#tuple-data-type)
+  + Variables can be declared with constraints on [upper and/or lower bounds](https://mc-stan.org/docs/reference-manual/types.html#variable-types-vs.-constraints-and-sizes)
+  
+* Motivation
+  + Static types make programs easier to comprehend, debug, and maintain
+  + Programming errors can be detected at compile-time
+  + Constrained types catch runtime errors
+
+\vspace*{4pt}
+\fontsize{9pt}{9.4}\selectfont
+```stan
+  int<lower=0> N, N_time;                     // constraint applies to both N, N_time
+  vector[3]<lower=0> sigma;
+  array[3] matrix[M, N] some_xs;
+  array[N] int<lower=0, upper=N_time> time;  // use arrays for structured int data 
+```
+\normalsize
+
+# The Stan Language
+
+The `model` block
+
+\tightlist
+* defines the joint log probability density function given parameters
+* this function is the sum of all distribution and log probability increment statements
+in the model block
+
+\vspace*{8pt}
+[Distribution statements](https://mc-stan.org/docs/reference-manual/statements.html#distribution-statements.section)
+\fontsize{9pt}{9.4}\selectfont
+```stan
+y ~ normal(mu, sigma);
+mu ~ normal(0, 10);
+sigma ~ normal(0, 1);
+```
+\normalsize
+
+\vspace*{8pt}
+[Log probability increment statements](https://mc-stan.org/docs/reference-manual/statements.html#log-probability-increment-vs.-distribution-statement)
+\fontsize{9pt}{9.4}\selectfont
+```stan
+target += normal_lpdf(y | mu, sigma);
+target += normal_lpdf(mu | 0, 10);
+target += normal_lpdf(sigma | 0, 1);
+```
+\normalsize
+
+
+
 # Processing Steps
 
 * Compile model
@@ -393,19 +423,25 @@ Dataset taken from
   * Python version: `spatial_data.ipynb`
 
 
-# Poisson Regression for Areal Data
 
-Stan's Poisson-log Distribution
+# Notebook One:  Model Building Workflow
 
-- **`poisson_log`** distribution uses the log rate as a parameter
+\vspace*{-0.2in}
 
-- don't need to exponentiate, better numerical stability
+When writing a Stan model, as when writing any other computer program,\
+*the fastest way to success is to go slowly.*
 
-- **`poisson_log_rng`** pseudo-random number generator function
-  + Poisson variate is an **integer**,  largest integer value is $2^{30}$,
-argument to `poisson_log_rng` must be less than $30 \log 2$, $\approx 28$
+\vspace*{8pt}
 
-  + used in the data generating model
+* Incremental development
+   + Write a (simple) model
+   + Fit the model to data (either simulated or observed)
+   + Check the fit 
+
+* Then modify *(stepwise)* and repeat
+
+* Compare successive models
+
 
 # Base Model:  Poisson Regression
 
@@ -438,10 +474,27 @@ argument to `poisson_log_rng` must be less than $30 \log 2$, $\approx 28$
 \normalsize
 
 
-# Stan Program `poisson.stan`
+
+# Poisson Regression for Areal Data
+\vspace*{-20pt}
+
+Stan's Poisson-log Distribution
+
+- **`poisson_log`** distribution uses the log rate as a parameter
+   + don't need to exponentiate, better numerical stability
+
+- **`poisson_log_rng`** pseudo-random number generator function (PRNG function)
+  +  [PRNG functions](https://mc-stan.org/docs/stan-users-guide/user-functions.html#functions-acting-as-random-number-generators) used to replicate, simulate data.
+
+  + Poisson variate is an **integer**,  largest integer value is $2^{30}$,
+argument to `poisson_log_rng` must be less than $30 \log 2$, $\approx 28$
+
+
+
+# Base Stan Program 
 
 \fontsize{9pt}{9.4}\selectfont
-```
+```stan
 data {
   int<lower=0> N;
   array[N] int<lower=0> y; // count outcomes
@@ -463,23 +516,46 @@ model {
 ```
 \normalsize
 
+# Posterior Predictive Checks
+
+* The posterior predictive distribution is the distribution over new observations given previous observations.
+
+* In the absence of new observations, we can simulate new observations, `y_rep` in the `generated quantities` block.
+
+$y^{\textrm{rep}}$ of the original data set $y$ given model parameters
+$\theta$ is defined by
+$$
+p(y^{\textrm{rep}} \mid y)
+= \int p(y^{\textrm{rep}} \mid \theta)
+       \cdot p(\theta \mid y) \, \textrm{d}\theta.
+$$
 
 
-# Notebook One:  Regression Models in Stan
+# Base Stan Program - Generated Quantities Block
 
-This notebook follows the Bayesian Workflow recommendations by starting with a too-simple model
-and then expanding it in multiple ways.
+\fontsize{9pt}{9.4}\selectfont
+```stan
+generated quantities {
+  array[N] int y_rep;
+  vector[N] log_lik;
+  { // local block variables not recorded
+    vector[N] eta = log_E + beta0 + x * betas;
+    if (max(eta) > 26) { // avoid overflow in poisson_log_rng
+      print("max eta too big: ", max(eta));
+      for (n in 1:N) {
+        y_rep[n] = -1;  log_lik[n] = -1;
+      }
+    } else {
+      for (n in 1:N) {
+        y_rep[n] = poisson_log_rng(eta[n]);
+        log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);
+      }
+    }
+  }
+}
+```
+\normalsize
 
-# Programming Pitfalls
-
-* Pitfall: too many ways to go wrong.
-* Defense: start with too simple model, build up a model piecewise
-
-* Pitfall: the call of complexity
-* Defense: compare to simpler version
-
-* Pitfall: failure to generalize
-* Defense: prior predictive tests, posterior predictive tests
 
 # Notebook Two: ICAR model
 

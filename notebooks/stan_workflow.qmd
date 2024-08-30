@@ -1,0 +1,658 @@
+---
+title: "Stan Model Building Workflow"
+format:
+  html:
+    css: ../theming/quarto_styles.css 
+    syntax-definitions:
+      - ../theming/stan.xml
+    toc: true
+    toc-location: left
+    grid:
+      body-width: 1200px
+execute:
+  eval: false
+  keep-ipynb: true
+---
+
+
+When writing a Stan model, as when writing any other computer program,\
+*the fastest way to success is to go slowly.*
+
+* Incremental development
+   + Write a (simple) model
+   + Fit the model to data (either simulated or observed)
+   + Check the fit 
+
+* Then modify *(stepwise)* and repeat
+
+* Compare successive models
+
+## Notebook Setup
+
+**Python**
+
+```{python}
+# import all libraries used in this notebook
+import os
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import libpysal as sa
+import matplotlib
+import splot as splt
+import plotnine as p9
+import arviz as az
+%matplotlib inline
+
+from cmdstanpy import CmdStanModel, cmdstan_path, cmdstan_version
+
+# suppress plotnine warnings
+import warnings
+warnings.filterwarnings('ignore')
+
+# setup plotnine look and feel
+p9.theme_set(
+  p9.theme_grey() + 
+  p9.theme(text=p9.element_text(size=10),
+        plot_title=p9.element_text(size=14),
+        axis_title_x=p9.element_text(size=12),
+        axis_title_y=p9.element_text(size=12),
+        axis_text_x=p9.element_text(size=8),
+        axis_text_y=p9.element_text(size=8)
+       )
+)
+xlabels_90 = p9.theme(axis_text_x = p9.element_text(angle=90, hjust=1))
+
+map_theme =  p9.theme(figure_size=(7,6),
+                 axis_text_x=p9.element_blank(),
+                 axis_ticks_x=p9.element_blank(),
+                 axis_text_y=p9.element_blank(),
+                 axis_ticks_y=p9.element_blank())
+```
+
+
+**R**
+
+```{r}
+library(sf)
+library(spdep) |> suppressPackageStartupMessages()
+library(ggplot2)
+library(tidyverse) |> suppressPackageStartupMessages()
+library(cmdstanr)
+library(cmdstanr)
+library(posterior)
+library(loo)
+library(parallel)
+cores = floor(parallel::detectCores() / 2)
+```
+
+
+
+###### Load the NYC study data 
+
+**Python**
+
+```{python}
+nyc_geodata = gpd.read_file(os.path.join('..', 'data', 'nyc_study.geojson'))
+print(nyc_geodata.columns)
+print(nyc_geodata['BoroName'].value_counts())
+```
+
+**R**
+
+```{r}
+nyc_geodata = st_read("../data/nyc_study.geojson")
+names(nyc_geodata)
+table(nyc_geodata$BoroName)
+```
+
+
+
+##### Assemble the input data into a dictionary / named list 
+
+The model's data block:
+```stan
+data {
+  int<lower=0> N;
+  array[N] int<lower=0> y; // count outcomes
+  vector<lower=0>[N] E; // exposure
+  int<lower=1> K; // num covariates
+  matrix[N, K] x; // design matrix
+}
+```
+
+
+**Python**
+
+```{python}
+design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
+
+design_mat = nyc_geodata[design_vars].to_numpy()
+design_mat[:, 1] = np.log(design_mat[:, 1])
+design_mat[:, 2] = np.log(design_mat[:, 2])
+
+pois_data = {"N":nyc_geodata.shape[0],
+             "y":nyc_geodata['count'].astype('int'),
+             "E":nyc_geodata['kid_pop'].astype('int'),
+             "K":4,
+             "x":design_mat }
+```
+
+**R**
+
+```{r}
+design_mat <- as.data.frame(nyc_geodata) %>%
+  select(pct_pubtransit, med_hh_inc, traffic, frag_index) %>%
+  mutate(med_hh_inc = log(med_hh_inc),
+         traffic = log(traffic))
+
+pois_data <- list(
+  N = nrow(nyc_geodata),
+  y = as.integer(nyc_geodata$count),
+  E = as.integer(nyc_geodata$kid_pop),
+  K = 4,
+  x = design_mat
+)
+```
+
+## Base Model:  `poisson.stan`
+
+This file is in directory `stan/poisson.stan`.
+
+##### Model is compiled (as needed) on instantiation 
+
+**Python**
+
+```{python}
+pois_mod = CmdStanModel(
+           stan_file=os.path.join('..', 'stan', 'poisson.stan'))
+```
+
+
+**R**
+
+```{r}
+pois_mod = cmdstan_model(
+           stan_file=file.path('..', 'stan', 'poisson.stan')) 
+```
+
+##### Run the NUTS-HMC sampler 
+
+**Python**
+
+```{python}
+pois_fit = pois_mod.sample(data=pois_data)
+```
+
+
+**R**
+
+```{r}
+pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores)
+```
+
+##### Summarize the results
+
+
+**Python**
+
+```{python}
+pois_fit.summary().round(2).loc[
+                   ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
+```
+
+**R**
+
+```{r}
+pois_fit
+```
+
+
+
+## Refinement: Center Continuous Predictors 
+
+*In theory*, much discussion and debate about doing this -
+start
+[here](https://www.goldsteinepi.com/blog/thewhyandwhenofcenteringcontinuouspredictorsinregressionmodeling/index.html),
+follow the links and keep going.
+
+*In practice*, ***this helps, alot!*** and is often necessary in order to fit the model.
+The packages BRMS and RStanArm do this automatically - [discussion here](https://discourse.mc-stan.org/t/brms-input-scaling-clarification/23601/3).
+
+Doing this requires two additions to the model
+
+1. in the `transformed data` block, center the predictors
+
+2. in the `generated quantities` block, adjust the value of the intercept term (if any),
+   accordingly.
+
+There are the key changes / additions to the base model 
+
+```stan
+data {
+  // no change 
+}
+transformed data {
+  // center continuous predictors 
+  vector[K] means_x;  // column means of x before centering
+  matrix[N, K] x_centered;  // centered version of x
+  for (k in 1:K) {
+    means_x[k] = mean(x[, k]);
+    x_centered[, k] = x[, k] - means_x[k];
+  }
+}
+parameters {
+  // no change 
+}
+model {
+  y ~ poisson_log(log_E + beta0 + x_centered * betas);   // centered data
+  // priors same
+}
+generated quantities {
+  real beta_intercept = beta0 - dot_product(means_x, betas);  // adjust intercept
+  // compute log_lik, y_rep 
+  {
+    vector[N] eta = log_E + beta0 + x_centered * betas;   // centered data
+    //  ..
+  }
+}
+```
+
+
+**Python**
+
+```{python}
+pois_xc_mod = CmdStanModel(stan_file=os.path.join(
+  '..', 'stan', 'poisson_ctr_preds.stan'))
+pois_xc_fit = pois_xc_mod.sample(data=pois_data)  
+pois_xc_fit.summary().round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
+```
+
+
+**R**
+
+```{r}
+pois_xc_mod = cmdstan_model(stan_file=file.path(
+  '..', 'stan', 'poisson_ctr_preds.stan')) 
+pois_xc_fit = pois_xc_mod$sample(data=pois_data, parallel_chains=cores)
+pois_xc_fit
+```
+
+How do the samples differ?
+
+
+**Python**
+
+```{python}
+print("data matrix raw")   
+pois_fit.summary().round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
+```
+```{python}
+print("data matrix centered")   
+pois_xc_fit.summary().round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
+```
+
+**R**
+
+```{r}  
+print("data matrix raw")   
+pois_fit
+```
+```{r}  
+print("data matrix centered")   
+pois_xc_fit
+```
+
+
+## The Importance of Scale
+
+The data variables are on different scales
+
+| Measures                                              | Median | Min    | Mean     | Max       |
+|-------------------------------------------------------|--------|--------|----------|-----------|
+| Med. household income in USD, 2010-14                 | $53,890| $9,327 | $58,497  | $232,266  |
+| Pct. commute by walk/cycle/public trans, 2010-14      | 73.9   | 9.7    | 69.8     | 100.0     |
+| Standardized social fragmentation index               | -0.1   | -6.7   | 0.0      | 18.7      |
+| Traffic Volume (AADT), 2015                           | 19,178 | 843    | 37,248   | 276,476   |
+
+When preparing the data, variables `med\_hh\_inc` and `traffic` were log-transformed.  What happens
+if we don't do this?
+
+**Python**
+
+```{python}
+design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
+design_mat = nyc_geodata[design_vars].to_numpy()
+# design_mat[:, 1] = np.log(design_mat[:, 1])
+# design_mat[:, 2] = np.log(design_mat[:, 2])
+
+pois_data_2 = {"N":nyc_geodata.shape[0],
+             "y":nyc_geodata['count'].astype('int'),
+             "E":nyc_geodata['kid_pop'].astype('int'),
+             "K":4,
+             "x":design_mat }
+```
+
+**R**
+
+```{r}
+design_mat_2 <- as.data.frame(nyc_geodata) %>%
+  select(pct_pubtransit, med_hh_inc, traffic, frag_index)
+# mutate(med_hh_inc = log(med_hh_inc),
+#        traffic = log(traffic))
+
+pois_data_2 <- list(
+  N = nrow(nyc_geodata),
+  y = as.integer(nyc_geodata$count),
+  E = as.integer(nyc_geodata$kid_pop),
+  K = 4,
+  x = design_mat_2
+)
+```
+
+Run the base model on this data 
+
+
+**Python**
+
+```{python}
+pois_fit_2 = pois_mod.sample(data=pois_data_2)
+pois_fit_2.summary().round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
+```
+
+
+**R**
+
+```{r}
+pois_fit_2 = pois_mod$sample(data=pois_data_2, parallel_chains=cores)
+pois_fit_2
+```
+
+
+(Try to) run the centered predictors model on this data - this fails spectacularly.
+Adding print statements to the `transformed data` block shows why.
+
+#### Stan debug by printf
+```stan
+transformed data {
+  vector[N] log_E = log(E);
+  // center continuous predictors 
+  vector[K] means_x;  // column means of x before centering
+  matrix[N, K] x_centered;  // centered version of x
+  for (k in 1:K) {
+    means_x[k] = mean(x[, k]);
+    x_centered[, k] = x[, k] - means_x[k];
+  }
+  print("means x", means_x);
+  print("x_centered", x_centered[1:10, ]);
+}
+```
+
+This block is executed once on startup.   Here is the relevant output captured from the console:
+
+
+```
+means x[0.697427,58496.8,37247.6,5.2506e-07] 
+
+x_centered[[-0.332027,16340.2,-28565.6,-3.0614],
+           [-0.192427,19494.2,-20330.6,-2.9154],
+           [-0.119827,-26142.8,-14535.6,-0.227501],
+           [0.102773,-23861.8,87519.4,3.0295],
+           [0.0157734,-35073.8,-27028.6,0.165199],
+           [0.212673,-44192.8,-13380.6,0.854999],
+           [0.168673,-42813.8,-23795.6,2.1472],
+           [0.161073,-38337.8,-23795.6,-0.412501],
+           [0.221773,-40080.8,-23795.6,0.900599],
+           [-0.148227,-8108.8,75694.4,-0.949601]] 
+```
+
+**Python**
+
+```{python}  
+pois_xc_fit_2 = pois_xc_mod.sample(data=pois_data_2)
+pois_xc_fit_2.summary().round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
+```
+
+
+**R**
+
+```{r}
+pois_xc_fit_2 = pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
+pois_xc_fit_2
+```
+
+##### Takeaway
+
+To improve model fit and processing speed, predictors should be on the same scale.
+
+**Python**
+
+```{python} 
+print(design_mat.describe())
+print(design_mat_2.describe())
+```
+
+**R**
+
+```{r}
+summary(design_mat)
+summary(design_mat_2)
+```
+
+*But* remember to account for any rescaling when trying to interpret the fitted coefficients! 
+
+## Model Checking:  The Posterior Predictive Check 
+
+From the [Stan Users Guide](https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#simulating-from-the-posterior-predictive-distribution)
+
+>Posterior predictive checks are a way of measuring whether a model
+does a good job of capturing relevant aspects of the data, such as
+means, standard deviations, and quantiles.
+
+>The posterior predictive distribution is the distribution over new
+observations given previous observations.  It's predictive in the
+sense that it's predicting behavior on new data that is not part of
+the training set.  It's posterior in that everything is conditioned on
+observed data $y$.
+
+>The posterior predictive distribution for replications
+$y^{\textrm{rep}}$ of the original data set $y$ given model parameters
+$\theta$ is defined by
+$$
+p(y^{\textrm{rep}} \mid y)
+= \int p(y^{\textrm{rep}} \mid \theta)
+       \cdot p(\theta \mid y) \, \textrm{d}\theta.
+$$
+
+
+##### Posterior predictive density overlay plots
+
+The variable `y_rep` is a *simulated* dataset based on the observed data and the estimated parameters, using Stan's PRNG function `poisson_log_rng`,
+thus the sample contains a set of random datasets all conditioned on the observed data (nyc_geodata['count']).
+
+The posterior predictive density overlay plot compares the distribution of the observed data to the distribution of some of the simulated datasets (`y_rep`).
+
+In R, this is available from the [bayesplot](https://mc-stan.org/bayesplot) package as function [`ppc_dens_overlay`](https://mc-stan.org/bayesplot/articles/graphical-ppcs.html#ppc_dens_overlay).
+
+**R**
+
+```{r}
+y_rep <- as_draws_matrix(pois_xc_fit$draws("y_rep"))
+ppc_dens_overlay(nyc_geodata$count, y_rep) +
+                 ggtitle("Posterior Predictive Check: Poisson model")
+```
+
+To create the equivalent plot in Python:
+
+1. select a random set of draws from the output.
+2. create a ggplot plot
+3. add  to the plot the density each simulated dataset  (thin line, light color, relatively transparent)
+4. add to the plot the density of the observed data (heavy line, dark color)
+
+**Python**
+
+```{python}
+y_rep = pois_xc_fit.stan_variable('y_rep')
+
+# select random sample
+y_rep_sample = pd.DataFrame(y_rep).sample(n=50).reset_index(drop=True).T
+
+# create ggplot
+pois_ppc = p9.ggplot() + p9.title("Posterior Predictive Check: Poisson model") 
+
+# add simulated dataset densities
+for i in range(50):
+    pois_ppc = pois_ppc
+               + p9.stat_density(mapping=p9.aes(x=y_rep_sample[i]),
+                 geom='line', color='lightblue', alpha=0.4)
+
+# add observed data density
+pois_ppc = (pois_ppc 
+            + p9.stat_density(data=nyc_geodata, mapping=p9.aes(x='count'),
+              geom='line', color='darkblue', size=1.1)
+            + p9.theme(figure_size=(6,4))
+         )
+pois_ppc
+```
+
+## Refinement:  Add random effects
+
+The Poisson distribution provides a single parameter $\lambda$, which is both mean and variance.
+As the above plots show, the data is overdispersed - the observed variance is greater than expected.
+To improve the model fit, we can add an ordinary random-effects component - this will account for per-tract heterogeneity.
+(Not to get head of ourselves, but this is one component in the BYM model).
+
+There are the key changes / additions to the base model 
+ 
+```stan
+data {
+  // no change 
+}
+transformed data {
+  // no change, (center continuous predictors)
+}
+parameters {
+  real beta0; // intercept
+  vector[K] betas; // covariates
+  vector[N] theta; // heterogeneous random effects
+  real<lower=0> sigma; // random effects variance 
+}
+model {
+  y ~ poisson_log(log_E + beta0 + x_centered * betas + theta * sigma);
+  beta0 ~ std_normal();
+  betas ~ std_normal();
+  theta ~ std_normal();
+  sigma ~ normal(0, 5);
+}
+generated quantities {
+  // compute log_lik, y_rep 
+  {
+    vector[N] eta = log_E + beta0 + x_centered * betas + theta * sigma;
+    // ..
+  }
+}
+
+```
+
+
+**Python**
+
+```{python}
+pois_re_mod = CmdStanModel(stan_file=os.path.join(
+  '..', 'stan', 'poisson_re.stan'))
+pois_re_fit = pois_re_mod.sample(data=pois_data)
+pois_re_fit.summary().round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
+```
+
+
+**R**
+
+```{r}
+pois_re_mod = cmdstan_model(stan_file=file.path(
+  '..', 'stan', 'poisson_re.stan')) 
+pois_re_fit = pois_re_mod$sample(data=pois_data, parallel_chains=cores)
+pois_re_fit 
+```
+
+How do the samples differ from the base model?
+
+**Python**
+
+```{python}
+pois_xc_fit.summary().round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
+```
+
+**R**
+
+```{r}
+pois_xc_fit 
+```
+
+Run the PPC plots
+
+**Python**
+
+```{python}
+y_rep_re = pois_re_fit.stan_variable('y_rep')
+
+# select random sample
+y_rep_re_sample = pd.DataFrame(y_rep_re).sample(n=50).reset_index(drop=True).T
+
+# create ggplot
+pois_re_ppc = p9.ggplot() + p9.title("Posterior Predictive Check: Poisson + RE model")
+
+# add simulated dataset densities
+for i in range(50):
+    pois_re_ppc = pois_re_ppc
+                 + p9.stat_density(mapping=p9.aes(x=y_rep_re_sample[i]),
+                   geom='line', color='lightblue', alpha=0.4)
+
+# add observed data density
+pois_re_ppc = (pois_re_ppc 
+               + p9.stat_density(data=nyc_geodata, mapping=p9.aes(x='count'),
+                 geom='line', color='darkblue', size=1.1)
+               + p9.theme(figure_size=(6,4))
+         )
+pois_re_ppc
+```
+
+
+```{python}
+pois_ppc
+```
+
+
+**R**
+
+```{r}
+y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
+ppc_dens_overlay(nyc_geodata$count, y_rep_re) +
+                 ggtitle("Posterior Predictive Check: Poisson + RE Model") 
+```
+
+
+```{r}
+ppc_dens_overlay(nyc_geodata$count, y_rep) +
+                 ggtitle("Posterior Predictive Check: Poisson Model") 
+```
+
+## Model Comparison
+
+
+##### Leave-one-out cross-validation (LOO)
+
+
+The [loo package](https://mc-stan.org/loo/) provides an implementation of the algorithm presented in
+
+* Vehtari, A., Gelman, A. & Gabry, J. Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC. Stat Comput 27, 1413–1432 (2017). https://doi.org/10.1007/s11222-016-9696-4
+
+>  We introduce an efficient computation of LOO using Pareto-smoothed importance sampling (PSIS), a new procedure for regularizing importance weights. ...  As a byproduct of our calculations, we also
+>  obtain approximate standard errors for estimated predictive errors and for comparison of predictive errors between two models.
+

@@ -89,7 +89,6 @@ To visualize GIS data, we need to be able to draw maps and spatial graphs.
 
 ### Notebook Startup: Load Packages / Libraries
 
-**R**
 ```{r}
 library(sf)
 library(spdep) |> suppressPackageStartupMessages()
@@ -101,7 +100,6 @@ library(tidyverse) |> suppressPackageStartupMessages()
 
 The study data and GIS data have been assembled into a single GeoJSON file.
 
-**R**
 ```{r}
 nyc_geodata = st_read("../data/nyc_study.geojson")
 class(nyc_geodata)
@@ -116,7 +114,6 @@ Plot the observed outcome `counts`.
 
 *Note:* Count data is properly plotted as a bar chart, not histogram plus density, but the visualization is useful.
 
-**R**
 ```{r}
 ggplot(data = nyc_geodata, aes(x = count)) +
   geom_histogram(aes(y = after_stat(density)), bins = 58, color = 'DarkBlue', fill = "skyblue", alpha = 0.7) +
@@ -132,7 +129,6 @@ ggplot(data = nyc_geodata, aes(x = count)) +
 
 #### Show areal map, fill color is accidents per tract
 
-**R**
 ```{r}
 ggplot(data = nyc_geodata) +
 geom_sf(aes(fill = count)) +
@@ -142,7 +138,6 @@ labs(title = "NYC School-Age Traffic Accident Victims by Census Tract")
 
 #### Show areal map, fill color is kid population per tract
 
-**R**
 ```{r}
 ggplot(data = nyc_geodata) +
     geom_sf(aes(fill = kid_pop)) +
@@ -152,7 +147,6 @@ ggplot(data = nyc_geodata) +
 
 #### Population: raw counts, density per square mile
 
-**R**
 ```{r}
 ggplot(data = nyc_geodata) +
     geom_sf(aes(fill = kids_per_sq_mi)) +

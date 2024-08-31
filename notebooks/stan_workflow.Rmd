@@ -10,9 +10,6 @@ format:
     toc-location: left
     grid:
       body-width: 1000px
-execute:
-  eval: false
-  keep-ipynb: true
 ---
 
 When writing a Stan model, as when writing any other computer program,\
@@ -28,50 +25,6 @@ When writing a Stan model, as when writing any other computer program,\
 * Compare successive models
 
 ## Notebook Setup
-
-**Python**
-
-```{python}
-# import all libraries used in this notebook
-import os
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-import libpysal as sa
-import matplotlib
-import splot as splt
-import plotnine as p9
-import arviz as az
-%matplotlib inline
-
-from cmdstanpy import CmdStanModel, cmdstan_path, cmdstan_version
-
-# suppress plotnine warnings
-import warnings
-warnings.filterwarnings('ignore')
-
-# setup plotnine look and feel
-p9.theme_set(
-  p9.theme_grey() + 
-  p9.theme(text=p9.element_text(size=10),
-        plot_title=p9.element_text(size=14),
-        axis_title_x=p9.element_text(size=12),
-        axis_title_y=p9.element_text(size=12),
-        axis_text_x=p9.element_text(size=8),
-        axis_text_y=p9.element_text(size=8)
-       )
-)
-xlabels_90 = p9.theme(axis_text_x = p9.element_text(angle=90, hjust=1))
-
-map_theme =  p9.theme(figure_size=(7,6),
-                 axis_text_x=p9.element_blank(),
-                 axis_ticks_x=p9.element_blank(),
-                 axis_text_y=p9.element_blank(),
-                 axis_ticks_y=p9.element_blank())
-```
-
-
-**R**
 
 ```{r}
 library(sf)
@@ -90,23 +43,11 @@ cores = floor(parallel::detectCores() / 2)
 
 #### Load the NYC study data 
 
-**Python**
-
-```{python}
-nyc_geodata = gpd.read_file(os.path.join('..', 'data', 'nyc_study.geojson'))
-print(nyc_geodata.columns)
-print(nyc_geodata['BoroName'].value_counts())
-```
-
-**R**
-
 ```{r}
 nyc_geodata = st_read("../data/nyc_study.geojson")
 names(nyc_geodata)
 table(nyc_geodata$BoroName)
 ```
-
-
 
 #### Assemble the input data
 
@@ -119,24 +60,6 @@ The data block of the model declares variables:
 - `x` - the N x K data matrix of predictors
 
 The predictors from the study data are columns: `pct_pubtransit`,`med_hh_inc`, `traffic`, `frag_index`.
-
-**Python**
-
-```{python}
-design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
-
-design_mat = nyc_geodata[design_vars].to_numpy()
-design_mat[:, 1] = np.log(design_mat[:, 1])
-design_mat[:, 2] = np.log(design_mat[:, 2])
-
-pois_data = {"N":nyc_geodata.shape[0],
-             "y":nyc_geodata['count'].astype('int'),
-             "E":nyc_geodata['kid_pop'].astype('int'),
-             "K":4,
-             "x":design_mat }
-```
-
-**R**
 
 ```{r}
 design_mat <- as.data.frame(nyc_geodata) %>%
@@ -159,16 +82,6 @@ This file is in directory `stan/poisson.stan`.
 
 #### Model is compiled (as needed) on instantiation 
 
-**Python**
-
-```{python}
-pois_mod = CmdStanModel(
-           stan_file=os.path.join('..', 'stan', 'poisson.stan'))
-```
-
-
-**R**
-
 ```{r}
 pois_mod = cmdstan_model(
            stan_file=file.path('..', 'stan', 'poisson.stan')) 
@@ -176,30 +89,11 @@ pois_mod = cmdstan_model(
 
 #### Run the NUTS-HMC sampler 
 
-**Python**
-
-```{python}
-pois_fit = pois_mod.sample(data=pois_data)
-```
-
-
-**R**
-
 ```{r}
 pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores)
 ```
 
 #### Summarize the results
-
-
-**Python**
-
-```{python}
-pois_fit.summary().round(2).loc[
-                   ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
-```
-
-**R**
 
 ```{r}
 pois_fit
@@ -253,22 +147,7 @@ generated quantities {
 }
 ```
 
-**Python**
-
-```{python}
-pois_xc_mod = CmdStanModel(stan_file=os.path.join(
-  '..', 'stan', 'poisson_ctr_preds.stan'))
-```
-```{python}
-pois_xc_fit = pois_xc_mod.sample(data=pois_data)  
-```
-```{python}
-pois_xc_fit.summary().round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
-```
-
-
-**R**
+Compile and fit the model, print the summary.
 
 ```{r}
 pois_xc_mod = cmdstan_model(stan_file=file.path(
@@ -279,19 +158,8 @@ pois_xc_fit
 
 How do the samples differ?
 
-
-**Python**
-
-```{python}
-print("data matrix raw")   
-pois_fit.summary().round(2).loc[
-  ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
-```
-
-**R**
-
 ```{r}  
-print("data matrix raw")   
+print("data matrix not transformed")   
 pois_fit
 ```
 
@@ -309,24 +177,6 @@ The data variables are on different scales
 
 In the previous steps, the predictor variables `med\_hh\_inc` and `traffic` were log-transformed.
 What happens if we just use the raw data values?
-
-**Python**
-
-```{python}
-design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
-design_mat_2 = nyc_geodata[design_vars].to_numpy()
-
-pois_data_2 = {"N":nyc_geodata.shape[0],
-             "y":nyc_geodata['count'].astype('int'),
-             "E":nyc_geodata['kid_pop'].astype('int'),
-             "K":4,
-             "x":design_mat_2 }
-
-print("log income, traffic\n", pd.DataFrame(design_mat).describe())
-print("raw data\n", pd.DataFrame(design_mat_2).describe())
-```
-
-**R**
 
 ```{r}
 design_mat_2 <- as.data.frame(nyc_geodata) %>%
@@ -346,21 +196,7 @@ print(summary(design_mat_2))
 
 Run the base model on this data 
 
-
-**Python**
-
-```{python}
-pois_fit_2 = pois_mod.sample(data=pois_data_2)
-```
-```{python}
-pois_fit_2.summary().round(2).loc[
-  ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
-```
-
-
-**R**
-
-```{r}
+```{r, eval=FALSE}
 pois_fit_2 = pois_mod$sample(data=pois_data_2, parallel_chains=cores)
 pois_fit_2
 ```
@@ -371,15 +207,7 @@ it either overflows or underflow because the predictors are on wildly different 
 (Transforming the data fails faster because it both both `traffic` and `med_hh_inc`
 include large negative values - this underflows consistently.)
 
-**Python**
-
-```{python}  
-pois_xc_mod.sample(data=pois_data_2)
-```
-
-**R**
-
-```{r}
+```{r, eval=FALSE}
 pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
 ```
 
@@ -422,7 +250,6 @@ The posterior predictive density overlay plot compares the distribution of the o
 
 In R, this is available from the [bayesplot](https://mc-stan.org/bayesplot) package as function [`ppc_dens_overlay`](https://mc-stan.org/bayesplot/articles/graphical-ppcs.html#ppc_dens_overlay).
 
-**R**
 
 ```{r}
 y_rep <- as_draws_matrix(pois_xc_fit$draws("y_rep"))
@@ -430,41 +257,12 @@ ppc_dens_overlay(nyc_geodata$count, y_rep) +
                  ggtitle("Posterior Predictive Check: Poisson model")
 ```
 
-To create the equivalent plot in Python:
+To create the equivalent plot in Python (or directly using ggplot):
 
 1. select a random set of draws from the output.
 2. create a ggplot plot
 3. add  to the plot the density each simulated dataset  (thin line, light color, relatively transparent)
 4. add to the plot the density of the observed data (heavy line, dark color)
-
-**Python**
-
-```{python}
-y_rep = pois_xc_fit.stan_variable('y_rep')
-
-# select random sample
-y_rep_sample = pd.DataFrame(y_rep).sample(n=50).reset_index(drop=True).T
-
-# create ggplot
-pois_ppc = p9.ggplot() + p9.ggtitle("Posterior Predictive Check: Poisson model") 
-
-# add simulated dataset densities
-for i in range(50):
-    pois_ppc = (
-        pois_ppc
-        + p9.stat_density(mapping=p9.aes(x=y_rep_sample[i]),
-                          geom='line', color='lightblue', alpha=0.4)
-    )
-
-# add observed data density
-pois_ppc = (
-    pois_ppc
-    + p9.stat_density(data=nyc_geodata, mapping=p9.aes(x='count'),
-                      geom='line', color='darkblue', size=1.1)
-    + p9.theme(figure_size=(6,4))
-)
-pois_ppc
-```
 
 ## Refinement:  Add random effects
 
@@ -504,20 +302,7 @@ generated quantities {
 }
 
 ```
-
-
-**Python**
-
-```{python}
-pois_re_mod = CmdStanModel(stan_file=os.path.join(
-  '..', 'stan', 'poisson_re.stan'))
-pois_re_fit = pois_re_mod.sample(data=pois_data)
-pois_re_fit.summary().round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
-```
-
-
-**R**
+Compile the model, fit the data, print the fit.
 
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
@@ -528,57 +313,11 @@ pois_re_fit
 
 How do the samples differ from the base model?
 
-**Python**
-
-```{python}
-pois_xc_fit.summary().round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
-```
-
-**R**
-
 ```{r}
 pois_xc_fit 
 ```
 
 Run the PPC plots
-
-**Python**
-
-```{python}
-y_rep_re = pois_re_fit.stan_variable('y_rep')
-
-# select random sample
-y_rep_re_sample = pd.DataFrame(y_rep_re).sample(n=50).reset_index(drop=True).T
-
-# create ggplot
-pois_re_ppc = p9.ggplot() + p9.ggtitle("Posterior Predictive Check: Poisson + RE model") 
-
-# add simulated dataset densities
-for i in range(50):
-    pois_re_ppc = (
-        pois_re_ppc
-        + p9.stat_density(mapping=p9.aes(x=y_rep_re_sample[i]),
-                          geom='line', color='lightblue', alpha=0.4)
-    )
-
-# add observed data density
-pois_re_ppc = (
-    pois_re_ppc
-    + p9.stat_density(data=nyc_geodata, mapping=p9.aes(x='count'),
-                      geom='line', color='darkblue', size=1.1)
-    + p9.theme(figure_size=(6,4))
-)
-pois_re_ppc
-```
-
-
-```{python}
-pois_ppc
-```
-
-
-**R**
 
 ```{r}
 y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
@@ -616,43 +355,3 @@ loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)
 
 loo_compare(loo_xc_pois, loo_re_pois)
 ```
-
-
-In Python, we can do this using [ArviZ](https://python.arviz.org/en/stable/).
-
-**Python**
-
-```{python}
-## model comparison using loo from Arviz
-import arviz as az
-idata_pois_xc = az.from_cmdstanpy(
-    pois_xc_fit,
-    posterior_predictive="y_rep",
-    dims={"betas": ["covariates"]},
-    coords={"covariates": design_vars},
-    observed_data={"y": pois_data['y']}
-)
-idata_pois_xc
-```
-
-ArviZ provides the equivalent functions of those in R packages `bayesplot` and `loo`.
-
-```{python}
-az.plot_ppc(idata_pois_xc, data_pairs={"y":"y_rep"})
-```
-
-```{python}
-idata_pois_re = az.from_cmdstanpy(
-    pois_re_fit,
-    posterior_predictive="y_rep",
-    dims={"betas": ["covariates"]},
-    coords={"covariates": design_vars},
-    observed_data={"y": pois_data['y']}
-)
-az.plot_ppc(idata_pois_re, data_pairs={"y":"y_rep"})
-```
-
-```{python}
-az.compare({"poisson":idata_pois_xc, "poisson_re":idata_pois_re})
-```
-

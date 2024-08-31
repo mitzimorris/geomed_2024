@@ -2,9 +2,9 @@
 title: "Stan Model Building Workflow"
 format:
   html:
-    css: ../theming/quarto_styles.css 
+    css: theming/quarto_styles.css 
     syntax-definitions:
-      - ../theming/stan.xml
+      - theming/stan.xml
     embed-resources: true
     toc: true
     toc-location: left
@@ -93,7 +93,7 @@ cores = floor(parallel::detectCores() / 2)
 **Python**
 
 ```{python}
-nyc_geodata = gpd.read_file(os.path.join('..', 'data', 'nyc_study.geojson'))
+nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
 print(nyc_geodata.columns)
 print(nyc_geodata['BoroName'].value_counts())
 ```
@@ -101,7 +101,7 @@ print(nyc_geodata['BoroName'].value_counts())
 **R**
 
 ```{r}
-nyc_geodata = st_read("../data/nyc_study.geojson")
+nyc_geodata = st_read("data/nyc_study.geojson")
 names(nyc_geodata)
 table(nyc_geodata$BoroName)
 ```
@@ -163,7 +163,7 @@ This file is in directory `stan/poisson.stan`.
 
 ```{python}
 pois_mod = CmdStanModel(
-           stan_file=os.path.join('..', 'stan', 'poisson.stan'))
+           stan_file=os.path.join('stan', 'poisson.stan'))
 ```
 
 
@@ -171,7 +171,7 @@ pois_mod = CmdStanModel(
 
 ```{r}
 pois_mod = cmdstan_model(
-           stan_file=file.path('..', 'stan', 'poisson.stan')) 
+           stan_file=file.path('stan', 'poisson.stan')) 
 ```
 
 #### Run the NUTS-HMC sampler 
@@ -257,7 +257,7 @@ generated quantities {
 
 ```{python}
 pois_xc_mod = CmdStanModel(stan_file=os.path.join(
-  '..', 'stan', 'poisson_ctr_preds.stan'))
+  'stan', 'poisson_ctr_preds.stan'))
 ```
 ```{python}
 pois_xc_fit = pois_xc_mod.sample(data=pois_data)  
@@ -272,7 +272,7 @@ pois_xc_fit.summary().round(2).loc[
 
 ```{r}
 pois_xc_mod = cmdstan_model(stan_file=file.path(
-  '..', 'stan', 'poisson_ctr_preds.stan')) 
+  'stan', 'poisson_ctr_preds.stan')) 
 pois_xc_fit = pois_xc_mod$sample(data=pois_data, parallel_chains=cores)
 pois_xc_fit
 ```
@@ -510,7 +510,7 @@ generated quantities {
 
 ```{python}
 pois_re_mod = CmdStanModel(stan_file=os.path.join(
-  '..', 'stan', 'poisson_re.stan'))
+  'stan', 'poisson_re.stan'))
 pois_re_fit = pois_re_mod.sample(data=pois_data)
 pois_re_fit.summary().round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
@@ -521,7 +521,7 @@ pois_re_fit.summary().round(2).loc[
 
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
-  '..', 'stan', 'poisson_re.stan')) 
+  'stan', 'poisson_re.stan')) 
 pois_re_fit = pois_re_mod$sample(data=pois_data, parallel_chains=cores)
 pois_re_fit 
 ```

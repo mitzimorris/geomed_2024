@@ -136,7 +136,7 @@ The study data and GIS data have been assembled into a single GeoJSON file.
 
 **Python**
 ```{python}
-nyc_geodata = gpd.read_file(os.path.join('..', 'data', 'nyc_study.geojson'))
+nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
 print(type(nyc_geodata))
 print(nyc_geodata.columns)
 print(nyc_geodata['BoroName'].value_counts())

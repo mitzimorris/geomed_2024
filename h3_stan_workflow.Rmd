@@ -2,9 +2,9 @@
 title: "Stan Model Building Workflow"
 format:
   html:
-    css: ../theming/quarto_styles.css 
+    css: theming/quarto_styles.css 
     syntax-definitions:
-      - ../theming/stan.xml
+      - theming/stan.xml
     embed-resources: true
     toc: true
     toc-location: left
@@ -44,7 +44,7 @@ cores = floor(parallel::detectCores() / 2)
 #### Load the NYC study data 
 
 ```{r}
-nyc_geodata = st_read("../data/nyc_study.geojson")
+nyc_geodata = st_read("data/nyc_study.geojson")
 names(nyc_geodata)
 table(nyc_geodata$BoroName)
 ```
@@ -84,7 +84,7 @@ This file is in directory `stan/poisson.stan`.
 
 ```{r}
 pois_mod = cmdstan_model(
-           stan_file=file.path('..', 'stan', 'poisson.stan')) 
+           stan_file=file.path('stan', 'poisson.stan')) 
 ```
 
 #### Run the NUTS-HMC sampler 
@@ -151,7 +151,7 @@ Compile and fit the model, print the summary.
 
 ```{r}
 pois_xc_mod = cmdstan_model(stan_file=file.path(
-  '..', 'stan', 'poisson_ctr_preds.stan')) 
+  'stan', 'poisson_ctr_preds.stan')) 
 pois_xc_fit = pois_xc_mod$sample(data=pois_data, parallel_chains=cores)
 pois_xc_fit
 ```
@@ -306,7 +306,7 @@ Compile the model, fit the data, print the fit.
 
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
-  '..', 'stan', 'poisson_re.stan')) 
+  'stan', 'poisson_re.stan')) 
 pois_re_fit = pois_re_mod$sample(data=pois_data, parallel_chains=cores)
 pois_re_fit 
 ```

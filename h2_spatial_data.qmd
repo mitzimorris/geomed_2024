@@ -2,9 +2,7 @@
 title: "Spatial Data Analysis in Python and R"
 format:
   html:
-    css: ../theming/quarto_styles.css 
-    syntax-definitions:
-      - ../theming/stan.xml
+    css: theming/quarto_styles.css 
     embed-resources: true
     toc: true
     toc-location: left
@@ -144,7 +142,7 @@ print(nyc_geodata['BoroName'].value_counts())
 
 **R**
 ```{r}
-nyc_geodata = st_read("../data/nyc_study.geojson")
+nyc_geodata = st_read(file_path("data", "nyc_study.geojson")
 class(nyc_geodata)
 names(nyc_geodata)
 table(nyc_geodata$BoroName)

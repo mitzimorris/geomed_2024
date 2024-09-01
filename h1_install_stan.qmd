@@ -5,8 +5,6 @@ subtitle: Instructions for GeoMed Workshop
 format:
   html:
     css: ../theming/quarto_styles.css 
-    syntax-definitions:
-      - ../theming/stan.xml
     embed-resources: true
     toc: true
     toc-location: left

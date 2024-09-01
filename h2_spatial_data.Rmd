@@ -2,16 +2,10 @@
 title: "Spatial Data Analysis in Python and R"
 format:
   html:
-    css: ../theming/quarto_styles.css 
-    syntax-definitions:
-      - ../theming/stan.xml
+    css: theming/quarto_styles.css 
     toc: true
     toc-location: left
-execute:
-  eval: false
-  keep-ipynb: true
 ---
-
 
 ## Example Dataset:  NYC traffic accidents, localized to US Census blocks
 

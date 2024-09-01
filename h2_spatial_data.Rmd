@@ -101,7 +101,7 @@ library(tidyverse) |> suppressPackageStartupMessages()
 The study data and GIS data have been assembled into a single GeoJSON file.
 
 ```{r}
-nyc_geodata = st_read("../data/nyc_study.geojson")
+nyc_geodata = st_read(file.path("data", "nyc_study.geojson"))
 class(nyc_geodata)
 names(nyc_geodata)
 table(nyc_geodata$BoroName)

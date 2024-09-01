@@ -5,7 +5,7 @@ data {
   array[N] int<lower=1, upper=N_boros> boro_code;
   vector<lower=0>[N] E; // exposure
   int<lower=1> K; // num covariates
-  matrix[N, K] x; // design matrix
+  matrix[N, K] xs; // design matrix
 }
 transformed data {
   vector[N] log_E = log(E);
@@ -19,7 +19,7 @@ transformed parameters {
   vector[N_boros] boro = append_row(boro_raw, -sum(boro_raw));
 }
 model {
-  y ~ poisson_log(log_E + beta0 + boro[boro_code] + x * betas);  // likelihood
+  y ~ poisson_log(log_E + beta0 + boro[boro_code] + xs * betas);  // likelihood
   beta0 ~ std_normal();
   boro ~ std_normal();
   betas ~ std_normal();
@@ -28,7 +28,7 @@ generated quantities {
   array[N] int y_rep;
   vector[N] log_lik;
   {
-    vector[N] eta = log_E + beta0 + boro[boro_code] + x * betas;
+    vector[N] eta = log_E + beta0 + boro[boro_code] + xs * betas;
     if (max(eta) > 26) {
       // avoid overflow in poisson_log_rng
       print("max eta too big: ", max(eta));

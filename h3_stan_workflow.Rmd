@@ -57,7 +57,7 @@ The data block of the model declares variables:
 - `y` - the array of observed outcomes - accidents per tract
 - `E` - the population per tract ("exposure")
 - `K` - the number of predictors
-- `x` - the N x K data matrix of predictors
+- `xs` - the N x K data matrix of predictors
 
 The predictors from the study data are columns: `pct_pubtransit`,`med_hh_inc`, `traffic`, `frag_index`.
 
@@ -72,7 +72,7 @@ pois_data <- list(
   y = as.integer(nyc_geodata$count),
   E = as.integer(nyc_geodata$kid_pop),
   K = 4,
-  x = design_mat
+  xs = design_mat
 )
 ```
 
@@ -80,11 +80,15 @@ pois_data <- list(
 
 This file is in directory `stan/poisson.stan`.
 
+```{r}
+poisson_model_file = file.path('stan', 'poisson.stan')
+cat(readlines(file_path), sep="\n")
+```
+
 #### Model is compiled (as needed) on instantiation 
 
 ```{r}
-pois_mod = cmdstan_model(
-           stan_file=file.path('stan', 'poisson.stan')) 
+pois_mod = CmdStanModel(stan_file=poisson_model_file)
 ```
 
 #### Run the NUTS-HMC sampler 
@@ -99,7 +103,7 @@ pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores)
 pois_fit
 ```
 
-## Refinement: Center (or Standardize) the Data
+## Refinement: Mean-Center Predictor Data
 
 *In theory*, much discussion and debate about doing this -
 start
@@ -123,25 +127,25 @@ data {
 }
 transformed data {
   // center continuous predictors 
-  vector[K] means_x;  // column means of x before centering
-  matrix[N, K] x_centered;  // centered version of x
+  vector[K] means_xs;  // column means of xs before centering
+  matrix[N, K] xs_centered;  // centered version of xs
   for (k in 1:K) {
-    means_x[k] = mean(x[, k]);
-    x_centered[, k] = x[, k] - means_x[k];
+    means_xs[k] = mean(xs[, k]);
+    xs_centered[, k] = xs[, k] - means_xs[k];
   }
 }
 parameters {
   // no change 
 }
 model {
-  y ~ poisson_log(log_E + beta0 + x_centered * betas);   // centered data
+  y ~ poisson_log(log_E + beta0 + xs_centered * betas);   // centered data
   // priors same
 }
 generated quantities {
-  real beta_intercept = beta0 - dot_product(means_x, betas);  // adjust intercept
+  real beta_intercept = beta0 - dot_product(means_xs, betas);  // adjust intercept
   // compute log_lik, y_rep 
   {
-    vector[N] eta = log_E + beta0 + x_centered * betas;   // centered data
+    vector[N] eta = log_E + beta0 + xs_centered * betas;   // centered data
     //  ..
   }
 }
@@ -164,7 +168,7 @@ pois_fit
 ```
 
 
-## The Importance of Scale
+## Predictor Data Scales
 
 The data variables are on different scales
 
@@ -175,7 +179,7 @@ The data variables are on different scales
 | Standardized social fragmentation index               | -0.1   | -6.7   | 0.0      | 18.7      |
 | Traffic Volume (AADT), 2015                           | 19,178 | 843    | 37,248   | 276,476   |
 
-In the previous steps, the predictor variables `med\_hh\_inc` and `traffic` were log-transformed.
+In the previous steps, the predictor variables `med_hh_inc` and `traffic` were log-transformed.
 What happens if we just use the raw data values?
 
 ```{r}
@@ -187,7 +191,7 @@ pois_data_2 <- list(
   y = as.integer(nyc_geodata$count),
   E = as.integer(nyc_geodata$kid_pop),
   K = 4,
-  x = design_mat_2
+  xs = design_mat_2
 )
 
 print(summary(design_mat))
@@ -202,7 +206,7 @@ pois_fit_2
 ```
 
 The model that transforms the data matrix fails for the same fundamental reason:
-the regression component `x * betas` or `x_centered * betas` cannot be computed,
+the regression component `xs * betas` or `xs_centered * betas` cannot be computed,
 it either overflows or underflow because the predictors are on wildly different scales.
 (Transforming the data fails faster because it both both `traffic` and `med_hh_inc`
 include large negative values - this underflows consistently.)
@@ -287,7 +291,7 @@ parameters {
   real<lower=0> sigma; // random effects variance 
 }
 model {
-  y ~ poisson_log(log_E + beta0 + x_centered * betas + theta * sigma);
+  y ~ poisson_log(log_E + beta0 + xs_centered * betas + theta * sigma);
   beta0 ~ std_normal();
   betas ~ std_normal();
   theta ~ std_normal();
@@ -296,7 +300,7 @@ model {
 generated quantities {
   // compute log_lik, y_rep 
   {
-    vector[N] eta = log_E + beta0 + x_centered * betas + theta * sigma;
+    vector[N] eta = log_E + beta0 + xs_centered * betas + theta * sigma;
     // ..
   }
 }

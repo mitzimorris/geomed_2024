@@ -3,7 +3,7 @@ data {
   array[N] int<lower=0> y; // count outcomes
   vector<lower=0>[N] E; // exposure
   int<lower=1> K; // num covariates
-  matrix[N, K] x; // design matrix
+  matrix[N, K] xs; // design matrix
 }
 transformed data {
   vector[N] log_E = log(E);
@@ -13,7 +13,7 @@ parameters {
   vector[K] betas; // covariates
 }
 model {
-  y ~ poisson_log(log_E + beta0 + x * betas);  // likelihood
+  y ~ poisson_log(log_E + beta0 + xs * betas);  // likelihood
   beta0 ~ std_normal();  // priors
   betas ~ std_normal();
 }
@@ -21,7 +21,7 @@ generated quantities {
   array[N] int y_rep;
   vector[N] log_lik;
   {  // local block variables not recorded
-    vector[N] eta = log_E + beta0 + x * betas;
+    vector[N] eta = log_E + beta0 + xs * betas;
     if (max(eta) > 26) {
       // avoid overflow in poisson_log_rng
       print("max eta too big: ", max(eta));

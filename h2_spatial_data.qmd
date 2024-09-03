@@ -299,8 +299,8 @@ print(f'mean number of neighbors per node: {w_nyc_nbs.mean_neighbors}')
 ** R **
 ```{r}
 nyc_coords = st_coordinates(st_centroid(nyc_geodata['geometry']))
-plot(nyc_geodata['geometry'], col='lightblue', alpha=0.1)
-plot(nyc_nbs, coords=nyc_coords, add=TRUE, pch=21, cex=0.6)
+plot(st_geometry(nyc_geodata), col='lightblue')
+plot(nyc_nbs, coords=nyc_coords, add=TRUE, pch=20, cex=0.6)
 ```
 
 For the 2018 study, we created a fully connected map in order to use the standard BYM2 model.
@@ -323,6 +323,6 @@ plot_spatial_weights(w_brooklyn_nbs, brooklyn_geodata)
 ```{r}
 brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
 brooklyn_coords = st_coordinates(st_centroid(brooklyn_geodata['geometry']))
-plot(brooklyn_geodata['geometry'], col='skyblue', alpha=0.1)
-plot(brooklyn_nbs, coords=brooklyn_coords, add=TRUE, pch=21, cex=0.6)
+plot(st_geometry(brooklyn_geodata), col='skyblue')
+plot(brooklyn_nbs, coords=brooklyn_coords, add=TRUE, pch=20, cex=0.6)
 ```

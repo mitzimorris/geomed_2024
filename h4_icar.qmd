@@ -1,0 +1,179 @@
+---
+title: "Implementing the ICAR Model in Stan"
+format:
+  html:
+    css: theming/quarto_styles.css 
+    syntax-definitions:
+      - theming/stan.xml
+    embed-resources: true
+    toc: true
+    toc-location: left
+    grid:
+      body-width: 1000px
+execute:
+  eval: false
+  keep-ipynb: true
+---
+
+
+
+## Notebook Setup
+
+**Python**
+
+```{python}
+# import all libraries used in this notebook
+import os
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import libpysal as sa
+import matplotlib
+import splot as splt
+import plotnine as p9
+import arviz as az
+%matplotlib inline
+
+from cmdstanpy import CmdStanModel, cmdstan_path, cmdstan_version
+
+# suppress plotnine warnings
+import warnings
+warnings.filterwarnings('ignore')
+
+# setup plotnine look and feel
+p9.theme_set(
+  p9.theme_grey() + 
+  p9.theme(text=p9.element_text(size=10),
+        plot_title=p9.element_text(size=14),
+        axis_title_x=p9.element_text(size=12),
+        axis_title_y=p9.element_text(size=12),
+        axis_text_x=p9.element_text(size=8),
+        axis_text_y=p9.element_text(size=8)
+       )
+)
+xlabels_90 = p9.theme(axis_text_x = p9.element_text(angle=90, hjust=1))
+
+map_theme =  p9.theme(figure_size=(7,6),
+                 axis_text_x=p9.element_blank(),
+                 axis_ticks_x=p9.element_blank(),
+                 axis_text_y=p9.element_blank(),
+                 axis_ticks_y=p9.element_blank())
+```
+
+
+**R**
+
+```{r}
+library(sf)
+library(spdep) |> suppressPackageStartupMessages()
+library(ggplot2)
+library(tidyverse) |> suppressPackageStartupMessages()
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(loo)
+library(parallel)
+cores = floor(parallel::detectCores() / 2)
+```
+
+
+## Adding an ICAR Component to the Base Model
+
+
+#### Stan ICAR Model Implementation
+
+$$ p(\phi) \propto \exp \left\{ {- \frac{1}{2}} \sum_{i \sim j}{({\phi}_i - {\phi}_j)}^2 \right\} $$
+
+Use Stan's vectorized operations to compute log probability density:
+\fontsize{9pt}{9.4}\selectfont
+```
+   target += -0.5 * dot_self(phi[node1] - phi[node2]);
+```
+\normalsize
+\vspace{0.2in}
+
+Encode neighbor information as graph edgeset, i.e. pairs of indices for neighbors $i, j$:
+\fontsize{9pt}{9.4}\selectfont
+```
+  int<lower=0> N;
+  int<lower=0> N_edges;
+  int<lower=1, upper=N> node1[N_edges];
+  int<lower=1, upper=N> node2[N_edges];
+```
+\normalsize
+
+
+## Data Prep 
+
+
+#### Load the NYC study data 
+
+**Python**
+
+```{python}
+nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
+print(nyc_geodata.columns)
+print(nyc_geodata['BoroName'].value_counts())
+```
+
+**R**
+
+```{r}
+nyc_geodata = st_read("data/nyc_study.geojson")
+names(nyc_geodata)
+table(nyc_geodata$BoroName)
+```
+
+### Disconnected Components (and islands)
+
+New York city consists of several islands; only the Bronx is part of the mainland; Brooklyn and Queens are part of Long Island, plus smaller islands City Island, Roosevelt Island, and the Rockaways.
+
+**This is a problem for the ICAR model requires a fully connected graph**
+
+* For the NYC analysis paper, we hand edited the map of NYC (in R) to create a fully connected network graph.
+
+* For today's workshop, we will restrict out attention to Brooklyn, the largest borough in NYC, which is a single network component.
+
+
+**Python**
+
+```{python}
+brooklyn_geodata = nyc_geodata[nyc_geodata['BoroName']=='Brooklyn'].reset_index(drop=True)
+w_brooklyn_nbs = sa.weights.Rook.from_dataframe(brooklyn_geodata, geom_col='geometry')
+plot_spatial_weights(w_brooklyn_nbs, brooklyn_geodata) 
+```
+
+```{python}
+print(f'number of components: {w_brooklyn_nbs.n_components}')
+print(f'islands? {w_brooklyn_nbs.islands}')
+print(f'max nmber of neighbors per node: {w_brooklyn_nbs.max_neighbors}')
+print(f'mean nmber of neighbors per node: {w_brooklyn_nbs.mean_neighbors}')
+```
+
+### Alternative encodings of neighborhood network
+
+- $N \times N$ Adjacency matrix
+  + Entries $(i,\ j)$ and $(j,\ i)$ are 1 when regions $n_i$ and $n_j$ are neighbors, 0 otherwise
+
+- Undirected graph: regions are vertices, pairs of neighbors are edges
+  + Encoded as *edges* - 2 column matrix, each row is a pair of neighbors $({n_i}, {n_j})$
+
+
+#### Get edgeset
+
+- Compute this autmatically from `nyc_geodata` spatial geometry component
+  + Python package `libpysal`
+  + R package `spdep`
+
+
+**Python**
+
+```{python}
+w_brooklyn_nbs_adj =  w_brooklyn_nbs.to_adjlist(remove_symmetric=True)
+w_brooklyn_nbs_adj.head(10)
+```
+
+
+#### Create data structures for ICAR model
+
+

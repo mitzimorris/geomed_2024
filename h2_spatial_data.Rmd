@@ -3,6 +3,7 @@ title: "Spatial Data Analysis in Python and R"
 format:
   html:
     css: theming/quarto_styles.css 
+    embed-resources: true
     toc: true
     toc-location: left
 ---
@@ -60,7 +61,6 @@ census tract the maximum AADT value of its underlying streets in 2015.
 | Standardized social fragmentation index               | -0.1   | -6.7   | 0.0      | 18.7      |
 | Traffic Volume (AADT), 2015                           | 19,178 | 843    | 37,248   | 276,476   |
 
-
 ## Spatial Data manipulation in R and Python
 
 Geographic information systems (GIS) data is any item which has a geographic location, either a single point or a set of bounding polygons.
@@ -77,9 +77,7 @@ To visualize GIS data, we need to be able to draw maps and spatial graphs.
 - The python equivalent of R's `ggplot2` is [`plotnine`](https://plotnine.org/).
 - The [`splot`](https://pysal.org/notebooks/viz/splot/intro.html) provides additional plotting functions for spatial graph networks.
 
-
 ## Preliminary Data Analysis
-
 
 ### Notebook Startup: Load Packages / Libraries
 
@@ -101,7 +99,6 @@ names(nyc_geodata)
 table(nyc_geodata$BoroName)
 ```
 
-
 #### Traffic accidents - kids hit by cars
 
 Plot the observed outcome `counts`.
@@ -116,8 +113,6 @@ ggplot(data = nyc_geodata, aes(x = count)) +
   xlab("accidents") +
   ylab("")
 ```
-
-
 
 ### Visualize by Map Areas
 
@@ -149,10 +144,64 @@ ggplot(data = nyc_geodata) +
          subtitle = "Density measured as population per square mile")
 ```
 
-
 ##  Exercises
 
 * Visualize `med_hh_inc` (median household income), `frag_index` (fragmentation index), and `traffic`.
 
 * Create histograms of predictors `med_hh_inc`, `traffic`.   How can these be rescaled?
 
+## Spatial Smoothing For Areal Data:  From Maps to Graphs
+
+By defining a neighbor relationship between area regions, we convert a map to a graph.
+
+- The *neighbor relation* is defined in terms of shared areal boundaries
+
+- Neighborhood networks are computed from `nyc_geodata` spatial geometry component
+  + Python package `libpysal`
+  + R package `spdep`
+
+We need to compute the adjacency network between the regions in our map.
+
+In Python, use [`libpysal`](https://pysal.org/libpysal/), a Python library for spatial analysis, which we have imported as `sa`.
+To visualize this graph overlaid on the county map, use [splot](https://splot.readthedocs.io/en/latest/), a lightweight visualization interface.
+
+
+In R, use [`spdep`](https://r-spatial.github.io/spdep/) package.
+
+
+There are several ways to define the neighbor relationship, see https://pysal.org/libpysal/api.html#spatial-weights.
+Here we use the *Rook* metric:  regions which share a common line boundary are neighbors.
+
+* Python spatial weights object: [weights.W](https://pysal.org/libpysal/generated/libpysal.weights.W.html#libpysal-weights-w)
+* R spatial weights object: [`nb`](https://r-spatial.r-universe.dev/spdep/doc/manual.html#summary.nb)
+
+```{r}
+nyc_nbs = poly2nb(nyc_geodata, queen=FALSE)
+summary(nyc_nbs)
+```
+
+As the map shows, the neighborhood network is not fully connected.
+
+```{r}
+nyc_coords = st_coordinates(st_centroid(nyc_geodata['geometry']))
+plot(st_geometry(nyc_geodata), col='skyblue')
+plot(nyc_nbs, coords=nyc_coords, add=TRUE, pch=20, cex=0.6)
+```
+
+For the 2018 study, we created a fully connected map in order to use the standard BYM2 model.
+
+In [A note on intrinsic Conditional Autoregressive models for disconnected graphs](https://arxiv.org/abs/1705.04854), Freni-Sterrantino et.al. show how to implement the BYM2 model for use with areal data where the graph structure of the map is not fully connected, and we can implement this strategy using Stan.
+
+However, for the simple ICAR example, we restrict our analysis to the borough of Brooklyn.
+
+```{r}
+brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
+brooklyn_nbs = poly2nb(brooklyn_geodata, queen=FALSE)
+summary(brooklyn_nbs)
+```
+
+```{r}
+brooklyn_coords = st_coordinates(st_centroid(brooklyn_geodata['geometry']))
+plot(st_geometry(brooklyn_geodata), col='skyblue')
+plot(brooklyn_nbs, coords=brooklyn_coords, add=TRUE, pch=20, cex=0.6)
+```

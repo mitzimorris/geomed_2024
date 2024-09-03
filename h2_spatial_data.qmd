@@ -248,3 +248,69 @@ ggplot(data = nyc_geodata) +
 
 * Create histograms of predictors `med_hh_inc`, `traffic`.   How can these be rescaled?
 
+## Spatial Smoothing For Areal Data:  From Maps to Graphs
+
+By defining a neighbor relationship between area regions, we convert a map to a graph.
+
+- *Neighbor relation* defined in terms of shared boundaries
+
+- Compute this autmatically from `nyc_geodata` spatial geometry component
+  + R package `spdep`
+  + Python package `libpysal`
+
+
+### Alternative encodings of neighborhood graph
+
+- $N \times N$ Adjacency matrix
+  + Entries $(i,\ j)$ and $(j,\ i)$ are 1 when regions $n_i$ and $n_j$ are neighbors, 0 otherwise
+
+- Undirected graph: regions are vertices, pairs of neighbors are edges
+  + Encoded as *edges* - 2 column matrix, each row is a pair of neighbors $({n_i}, {n_j})$
+
+
+
+#### Compute neighborhood network
+
+
+**Python: Computing the neighborhood network with libpysal**
+
+We need to compute the adjacency network between the regions in our map.
+We do this with [libpysal](https://pysal.org/libpysal/), a Python library for spatial analysis, which we have imported as `sa`.
+To visualize this graph overlaid on the county map, we use [splot](https://splot.readthedocs.io/en/latest/), a lightweight visualization interface.
+
+There are several ways to define the neighbor relationship, see https://pysal.org/libpysal/api.html#spatial-weights.
+Here we use the *Rook* metric:  regions which share a common line boundary are neighbors.  This returns a spatial weights object, [weights.W](https://pysal.org/libpysal/generated/libpysal.weights.W.html#libpysal-weights-w)
+
+```{python}
+w_nyc_nbs = sa.weights.Rook(nyc_geodata['geometry'])
+
+from splot.libpysal import plot_spatial_weights 
+plot_spatial_weights(w_nyc_nbs, nyc_geodata) 
+```
+
+As the map shows, the neighborhood network is not fully connected.
+
+```{python}
+print(f'number of components: {w_nyc_nbs.n_components}')
+print(f'islands? {w_nyc_nbs.islands}')
+print(f'max nmber of neighbors per node: {w_nyc_nbs.max_neighbors}')
+print(f'mean nmber of neighbors per node: {w_nyc_nbs.mean_neighbors}')
+```
+
+For the 2018 study, we created a fully connected map in order to use the standard BYM2 model.
+In [A note on intrinsic Conditional Autoregressive models for disconnected graphs](https://arxiv.org/abs/1705.04854), Freni-Sterrantino et.al. show how to implement the BYM2 model for use with areal data where the graph structure of the map is not fully connected.
+
+For now, we'll swap in the fully connected graph and carry on.
+
+### Encode neighborhood network as an adjacency list
+
+We use the libpysal Weights object method [to_adjlist](https://pysal.org/libpysal/generated/libpysal.weights.W.html#libpysal.weights.W.to_adjlist) to extract neighbor information in the form of a list of adjacent nodes.
+All the indices are 0-based and match the order in which they occur in the GeoPandasDataFrame object `nyc_geodata`.
+
+
+```{python}
+w_nyc_nbs_adj =  w_nyc_nbs.to_adjlist(remove_symmetric=True)
+w_nyc_nbs_adj.head(10)
+```
+
+

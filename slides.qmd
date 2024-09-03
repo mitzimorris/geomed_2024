@@ -25,7 +25,7 @@ format:
 
 Learn how to use existing models and develop new ones.
 
-### Outline: Part One
+### Outline
 
 * About Stan
 
@@ -33,6 +33,9 @@ Learn how to use existing models and develop new ones.
 
 * ICAR Model for Spatial Smoothing
 
+* BYM2 Model for Spatial and Instrinsic Random Effects
+
+* Extensions to the BYM2 Model
 
 
 # What is Stan?
@@ -455,6 +458,8 @@ When writing a Stan model, as when writing any other computer program,\
 
 # Base Model:  Poisson Regression
 
+\vspace*{-0.2in}
+
 ##### Distribution statement (likelihood)
 
 \fontsize{9pt}{9.4}\selectfont
@@ -463,9 +468,11 @@ When writing a Stan model, as when writing any other computer program,\
 ```
 \normalsize
 
+\vspace*{4pt}
 - **`poisson_log`** distribution uses the log rate as a parameter
    + don't need to exponentiate, better numerical stability
 
+\vspace*{4pt}
 - **`poisson_log_rng`** pseudo-random number generator function (PRNG function)
   +  [PRNG functions](https://mc-stan.org/docs/stan-users-guide/user-functions.html#functions-acting-as-random-number-generators) used to replicate, simulate data.
 
@@ -543,7 +550,7 @@ generated quantities {
 
 * Start with base model
 * Best practice one:  mean-center, scale predictor data
-* Refine model
+* Refine model: add a random effects component
 * Check fits, compare models
 
 * Handouts
@@ -551,10 +558,124 @@ generated quantities {
   + R version `h3_stan_workflow.Rmd`
   + Python version: `h3_stan_workflow.ipynb`
 
+# Spatial Smoothing For Areal Data
 
-# Notebook Two: ICAR model
+\vspace*{-0.1in}
+Study goal: explain *rate* of traffic accidents  (count / kid_pop)
 
-This notebook shows how to code the ICAR model for spatial smoothing (Besag 1973) in Stan.
+\vspace*{8pt}
+\tightlist
+* Counts of rare events in small-population regions are noisy
+  + solution: pool information from *neighboring* areas
+
+\vspace*{4pt}
+* Besag, 1973, 1974:  Conditional Auto-Regressive Model (CAR), and\
+**Intrinsic Conditional Auto-Regressive** (ICAR) model
+
+\vspace*{4pt}
+* CAR model has parameter $\alpha$ for the amount of spatial dependence;
+  + CAR model requires computing matrix determinants
+  + cubic operation (calculated at every *step* of the sampler)
+
+\vspace*{4pt}
+* ICAR simplification: let $\alpha == 1$ (complete spatial dependence)
+  + ICAR model computes pairwise distance between neighbors
+  + quadratic operation
+
+# Neighbor Relationship
+
+\vspace*{-0.1in}
+\tightlist
+* The binary neighbor relationship (written $i \sim j$ where $i \neq j$) is
+  + $1$ if regions $n_i$ and $n_j$ are neighbors\
+  + $0$ otherwise
+
+\vspace*{8pt}
+* Many possible definitions of "neighbor"
+  +  'rook' - areas share a bounding line
+  +  'queen' - areas share a boundary point
+  +  *transit patterns* - residents travel (frequently, directly) between areas
+
+\vspace*{8pt}
+* For CAR models, neighbor relationship is:
+  + symmetric - if $i \sim j$ then $j \sim i$
+  + not reflexive - a region is not its own neighbor ($i\ \cancel{\sim}\ i$)
+
+# From Map to Graph
+
+\vspace*{-0.1in}
+The neighborhood network can be represented as either a matrix of a graph.
+
+\vspace*{4pt}
+\tightlist
+- $N \times N$ matrix
+  + Entries $(i,\ j)$ and $(j,\ i)$ are 1 when regions $n_i$ and $n_j$ are neighbors, 0 otherwise
+
+\vspace*{8pt}
+- Undirected graph: regions are vertices, pairs of neighbors are edges
+  + Encoded as a set of *edges* - 2 column matrix, each row is a pair of neighbors $({n_i}, {n_j})$
+
+\vspace*{8pt}
+- If the number of neighbors per area is relatively small compared to the number of areas,
+the adjacency matrix will be sparse
+
+\vspace*{8pt}
+- Computing with an edgeset is more efficient
+  + data structure requires less storage
+  + adjacent nodes in-memory adjacent
+
+
+# Intrinsic Conditional Auto-Regressive (ICAR) Model
+
+* Conditional specification: multivariate normal random vector $\mathbf{\phi}$
+where each ${\phi}_i$ is conditional on the values of its neighbors
+
+* Joint specification rewrites to _Pairwise Difference_:
+$$ p(\phi) \propto \exp \left\{ {- \frac{1}{2}} \sum_{i \sim j}{({\phi}_i - {\phi}_j)}^2 \right\} $$
+
+  + centered at 0, assuming common variance for all elements of $\phi$.
+
+* Each ${({\phi}_i - {\phi}_j)}^2$ contributes a
+penalty term based on the distance between the values of neighboring regions
+
+\tightlist
+* $\phi$ is non-identifiable, constant added to $\phi$ washes out of ${\phi}_i - {\phi}_j$
+  + sum-to-zero constraint centers $\phi$
+
+# Stan ICAR Model Implementation
+
+$$ p(\phi) \propto \exp \left\{ {- \frac{1}{2}} \sum_{i \sim j}{({\phi}_i - {\phi}_j)}^2 \right\} $$
+
+Use Stan's vectorized operations to compute log probability density:
+\fontsize{9pt}{9.4}\selectfont
+```
+   target += -0.5 * dot_self(phi[node1] - phi[node2]);
+```
+\normalsize
+\vspace{0.2in}
+
+Encode neighbor information as graph edgeset, i.e. pairs of indices for neighbors $i, j$:
+\fontsize{9pt}{9.4}\selectfont
+```
+  int<lower=0> N;
+  int<lower=0> N_edges;
+  int<lower=1, upper=N> node1[N_edges];
+  int<lower=1, upper=N> node2[N_edges];
+```
+\normalsize
+
+
+# Notebook: ICAR model
+
+* Add a spatial random effects component to the base model.
+* Check fits, compare models
+
+* Handouts
+  + `h4_icar.html`
+  + R version `h4_icar.Rmd`
+  + Python version: `h4_icar.ipynb`
+
+
 
 # References
 

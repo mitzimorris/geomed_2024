@@ -94,6 +94,7 @@ import geopandas as gpd
 import libpysal as sa
 import matplotlib as plt
 import splot as splt
+from splot.libpysal import plot_spatial_weights 
 import plotnine as p9
 %matplotlib inline
 
@@ -274,14 +275,12 @@ Here we use the *Rook* metric:  regions which share a common line boundary are n
 * R spatial weights object: [`nb`](https://r-spatial.r-universe.dev/spdep/doc/manual.html#summary.nb)
 
 ** Python **
-
 ```{python}
 w_nyc_nbs = sa.weights.Rook.from_dataframe(nyc_geodata, geom_col='geometry')
-splot.plot_spatial_weights(w_nyc_nbs, nyc_geodata)
+plot_spatial_weights(w_nyc_nbs, nyc_geodata)
 ```
 
 ** R **
-
 ```{r}
 nyc_nbs = poly2nb(nyc_geodata, queen=FALSE)
 summary(nyc_nbs)
@@ -290,7 +289,6 @@ summary(nyc_nbs)
 As the map shows, the neighborhood network is not fully connected.
 
 ** Python **
-
 ```{python}
 print(f'number of components: {w_nyc_nbs.n_components}')
 print(f'islands? {w_nyc_nbs.islands}')
@@ -299,7 +297,6 @@ print(f'mean number of neighbors per node: {w_nyc_nbs.mean_neighbors}')
 ```
 
 ** R **
-
 ```{r}
 nyc_coords = st_coordinates(st_centroid(nyc_geodata['geometry']))
 plot(nyc_geodata['geometry'], col='lightblue', alpha=0.1)
@@ -313,18 +310,16 @@ In [A note on intrinsic Conditional Autoregressive models for disconnected graph
 However, for the simple ICAR example, we restrict our analysis to the borough of Brooklyn.
 
 ** Python **
-
 ```{python}
 print(nyc_geodata['BoroName'].value_counts())
 brooklyn_geodata = nyc_geodata[nyc_geodata['BoroName']=='Brooklyn'].reset_index(drop=True)
 ```
 ```{python}
-w_brooklyn_nbs = sa.weights.Rook.from_dataframe(brooklyn_geodata, geom_col='geometry') #, ids=nyc_geodata['ct2010full'].to_list())
+w_brooklyn_nbs = sa.weights.Rook.from_dataframe(brooklyn_geodata, geom_col='geometry')
 plot_spatial_weights(w_brooklyn_nbs, brooklyn_geodata) 
 ```
 
 ** R **
-
 ```{r}
 brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
 brooklyn_coords = st_coordinates(st_centroid(brooklyn_geodata['geometry']))

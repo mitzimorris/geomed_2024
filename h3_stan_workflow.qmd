@@ -30,7 +30,6 @@ When writing a Stan model, as when writing any other computer program,\
 ## Notebook Setup
 
 **Python**
-
 ```{python}
 # import all libraries used in this notebook
 import os
@@ -72,7 +71,6 @@ map_theme =  p9.theme(figure_size=(7,6),
 
 
 **R**
-
 ```{r}
 library(sf)
 library(spdep) |> suppressPackageStartupMessages()
@@ -91,7 +89,6 @@ cores = floor(parallel::detectCores() / 2)
 #### Load the NYC study data 
 
 **Python**
-
 ```{python}
 nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
 print(nyc_geodata.columns)
@@ -99,7 +96,6 @@ print(nyc_geodata['BoroName'].value_counts())
 ```
 
 **R**
-
 ```{r}
 nyc_geodata = st_read("data/nyc_study.geojson")
 names(nyc_geodata)
@@ -121,7 +117,6 @@ The data block of the model declares variables:
 The predictors from the study data are columns: `pct_pubtransit`,`med_hh_inc`, `traffic`, `frag_index`.
 
 **Python**
-
 ```{python}
 design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
 
@@ -137,7 +132,6 @@ pois_data = {"N":nyc_geodata.shape[0],
 ```
 
 **R**
-
 ```{r}
 design_mat <- as.data.frame(nyc_geodata) %>%
   select(pct_pubtransit, med_hh_inc, traffic, frag_index) %>%
@@ -158,7 +152,6 @@ pois_data <- list(
 This file is in directory `stan/poisson.stan`.
 
 **Python**
-
 ```{python}
 poisson_model_file = os.path.join('stan', 'poisson.stan')
 
@@ -168,7 +161,6 @@ with open(poisson_model_file, 'r') as file:
 ```
 
 **R**
-
 ```{r}
 poisson_model_file = file.path('stan', 'poisson.stan')
 cat(readlines(file_path), sep="\n")
@@ -179,14 +171,12 @@ cat(readlines(file_path), sep="\n")
 #### Model is compiled (as needed) on instantiation 
 
 **Python**
-
 ```{python}
 pois_mod = CmdStanModel(stan_file=poisson_model_file)
 ```
 
 
 **R**
-
 ```{r}
 pois_mod = cmdstan_model(stan_file=poisson_model_file)
 ```
@@ -194,14 +184,12 @@ pois_mod = cmdstan_model(stan_file=poisson_model_file)
 #### Run the NUTS-HMC sampler 
 
 **Python**
-
 ```{python}
 pois_fit = pois_mod.sample(data=pois_data)
 ```
 
 
 **R**
-
 ```{r}
 pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores)
 ```
@@ -210,14 +198,12 @@ pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores)
 
 
 **Python**
-
 ```{python}
 pois_fit.summary().round(2).loc[
                    ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
 **R**
-
 ```{r}
 pois_fit
 ```
@@ -271,7 +257,6 @@ generated quantities {
 ```
 
 **Python**
-
 ```{python}
 pois_xc_mod = CmdStanModel(stan_file=os.path.join(
   'stan', 'poisson_ctr_preds.stan'))
@@ -286,7 +271,6 @@ pois_xc_fit.summary().round(2).loc[
 
 
 **R**
-
 ```{r}
 pois_xc_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_ctr_preds.stan')) 
@@ -298,7 +282,6 @@ How do the samples differ?
 
 
 **Python**
-
 ```{python}
 print("data matrix raw")   
 pois_fit.summary().round(2).loc[
@@ -306,7 +289,6 @@ pois_fit.summary().round(2).loc[
 ```
 
 **R**
-
 ```{r}  
 print("data matrix raw")   
 pois_fit
@@ -328,7 +310,6 @@ In the previous steps, the predictor variables `med_hh_inc` and `traffic` were l
 What happens if we just use the raw data values?
 
 **Python**
-
 ```{python}
 design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
 design_mat_2 = nyc_geodata[design_vars].to_numpy()
@@ -344,7 +325,6 @@ print("raw data\n", pd.DataFrame(design_mat_2).describe())
 ```
 
 **R**
-
 ```{r}
 design_mat_2 <- as.data.frame(nyc_geodata) %>%
   select(pct_pubtransit, med_hh_inc, traffic, frag_index)
@@ -365,7 +345,6 @@ Run the base model on this data
 
 
 **Python**
-
 ```{python}
 pois_fit_2 = pois_mod.sample(data=pois_data_2)
 ```
@@ -376,7 +355,6 @@ pois_fit_2.summary().round(2).loc[
 
 
 **R**
-
 ```{r}
 pois_fit_2 = pois_mod$sample(data=pois_data_2, parallel_chains=cores)
 pois_fit_2
@@ -389,13 +367,11 @@ it either overflows or underflow because the predictors are on wildly different 
 include large negative values - this underflows consistently.)
 
 **Python**
-
 ```{python}  
 pois_xc_mod.sample(data=pois_data_2)
 ```
 
 **R**
-
 ```{r}
 pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
 ```
@@ -440,7 +416,6 @@ The posterior predictive density overlay plot compares the distribution of the o
 In R, this is available from the [bayesplot](https://mc-stan.org/bayesplot) package as function [`ppc_dens_overlay`](https://mc-stan.org/bayesplot/articles/graphical-ppcs.html#ppc_dens_overlay).
 
 **R**
-
 ```{r}
 y_rep <- as_draws_matrix(pois_xc_fit$draws("y_rep"))
 ppc_dens_overlay(nyc_geodata$count, y_rep) +
@@ -455,7 +430,6 @@ To create the equivalent plot in Python:
 4. add to the plot the density of the observed data (heavy line, dark color)
 
 **Python**
-
 ```{python}
 y_rep = pois_xc_fit.stan_variable('y_rep')
 
@@ -524,7 +498,6 @@ generated quantities {
 
 
 **Python**
-
 ```{python}
 pois_re_mod = CmdStanModel(stan_file=os.path.join(
   'stan', 'poisson_re.stan'))
@@ -535,7 +508,6 @@ pois_re_fit.summary().round(2).loc[
 
 
 **R**
-
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_re.stan')) 
@@ -546,14 +518,12 @@ pois_re_fit
 How do the samples differ from the base model?
 
 **Python**
-
 ```{python}
 pois_xc_fit.summary().round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
 **R**
-
 ```{r}
 pois_xc_fit 
 ```
@@ -561,7 +531,6 @@ pois_xc_fit
 Run the PPC plots
 
 **Python**
-
 ```{python}
 y_rep_re = pois_re_fit.stan_variable('y_rep')
 
@@ -596,7 +565,6 @@ pois_ppc
 
 
 **R**
-
 ```{r}
 y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
 ppc_dens_overlay(nyc_geodata$count, y_rep_re) +
@@ -626,7 +594,6 @@ leave-one-out (LOO) cross-valiation, which allows us to compare predictive error
 In R,  we can do model comparison using the `loo` package.
 
 **R**
-
 ```{r}
 loo_xc_pois <- loo(pois_xc_fit$draws("log_lik"), save_psis = TRUE)
 loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)
@@ -638,7 +605,6 @@ loo_compare(loo_xc_pois, loo_re_pois)
 In Python, we can do this using [ArviZ](https://python.arviz.org/en/stable/).
 
 **Python**
-
 ```{python}
 ## model comparison using loo from Arviz
 import arviz as az

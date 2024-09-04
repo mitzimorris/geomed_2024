@@ -10,61 +10,12 @@ format:
     toc-location: left
     grid:
       body-width: 1000px
-execute:
-  eval: false
-  keep-ipynb: true
 ---
 
 ## Notebook Setup
 
 Import all libraries, load the NYC study data.
 
-**Python**
-```{python}
-# import all libraries used in this notebook
-import os
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-import libpysal as sa
-import matplotlib
-import splot as splt
-from splot.libpysal import plot_spatial_weights 
-import plotnine as p9
-import arviz as az
-%matplotlib inline
-
-from cmdstanpy import CmdStanModel, cmdstan_path, cmdstan_version
-
-# suppress plotnine warnings
-import warnings
-warnings.filterwarnings('ignore')
-
-# setup plotnine look and feel
-p9.theme_set(
-  p9.theme_grey() + 
-  p9.theme(text=p9.element_text(size=10),
-        plot_title=p9.element_text(size=14),
-        axis_title_x=p9.element_text(size=12),
-        axis_title_y=p9.element_text(size=12),
-        axis_text_x=p9.element_text(size=8),
-        axis_text_y=p9.element_text(size=8)
-       )
-)
-xlabels_90 = p9.theme(axis_text_x = p9.element_text(angle=90, hjust=1))
-
-map_theme =  p9.theme(figure_size=(7,6),
-                 axis_text_x=p9.element_blank(),
-                 axis_ticks_x=p9.element_blank(),
-                 axis_text_y=p9.element_blank(),
-                 axis_ticks_y=p9.element_blank())
-```
-```{python}
-nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
-nyc_geodata.columns
-```
-
-**R**
 ```{r}
 library(sf)
 library(spdep) |> suppressPackageStartupMessages()
@@ -95,21 +46,10 @@ names(nyc_geodata)
 
 New York city consists of several islands; only the Bronx is part of the mainland; Brooklyn and Queens are part of Long Island, plus smaller islands City Island, Roosevelt Island, and the Rockaways.
 
-**Python**
-```{python}
-w_nyc_nbs = sa.weights.Rook.from_dataframe(nyc_geodata, geom_col='geometry')
-print(f'number of components: {w_nyc_nbs.n_components}')
-print(f'islands? {w_nyc_nbs.islands}')
-print(f'max number of neighbors per node: {w_nyc_nbs.max_neighbors}')
-print(f'mean number of neighbors per node: {w_nyc_nbs.mean_neighbors}')
-```
-
-**R**
 ```{r}
 nyc_nbs = poly2nb(nyc_geodata, queen=FALSE)
 summary(nyc_nbs)
 ```
-
 
 *This is a problem for the ICAR model, which operates on a fully connected graph (single component)*
 
@@ -117,23 +57,6 @@ summary(nyc_nbs)
 
 * For today's workshop, we will restrict out attention to Brooklyn, the largest borough in NYC, which is a single network component.
 
-
-**Python**
-```{python}
-brooklyn_geodata = nyc_geodata[nyc_geodata['BoroName']=='Brooklyn'].reset_index(drop=True)
-brooklyn_nbs = sa.weights.Rook.from_dataframe(brooklyn_geodata, geom_col='geometry')
-plot_spatial_weights(brooklyn_nbs, brooklyn_geodata) 
-```
-
-```{python}
-print(f'number of components: {brooklyn_nbs.n_components}')
-print(f'islands? {brooklyn_nbs.islands}')
-print(f'max number of neighbors per node: {brooklyn_nbs.max_neighbors}')
-print(f'mean number of neighbors per node: {brooklyn_nbs.mean_neighbors}')
-```
-
-
-**R**
 ```{r}
 brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
 brooklyn_nbs = poly2nb(brooklyn_geodata, queen=FALSE)
@@ -145,7 +68,6 @@ plot(brooklyn_nbs, coords=brooklyn_coords, add=TRUE, pch=20, cex=0.6)
 ```{r}
 summary(brooklyn_nbs)
 ```
-
 
 ## Adding an ICAR Component to the Base Model
 
@@ -166,12 +88,10 @@ The Stan ICAR model uses the latter.
 $$ p(\phi) \propto \exp \left\{ {- \frac{1}{2}} \sum_{i \sim j}{({\phi}_i - {\phi}_j)}^2 \right\} $$
 
 Use Stan's vectorized operations to compute log probability density:
-\fontsize{9pt}{9.4}\selectfont
-```
+
+```stan
    target += -0.5 * dot_self(phi[node1] - phi[node2]);
 ```
-\normalsize
-\vspace{0.2in}
 
 Encode neighbor information as a graph.
 
@@ -181,35 +101,23 @@ Encode neighbor information as a graph.
   + row 1: index of first node in edge pair, $n_i$
   + row 2: index of second node in edge pair, $n_j$
 
-\fontsize{9pt}{9.4}\selectfont
+
 ```
   int<lower = 0> N;  // number of areal regions
   // spatial structure
   int<lower = 0> N_edges;  // number of neighbor pairs
   array[2, N_edges] int<lower = 1, upper = N> neighbors;  // node[1, j] adjacent to node[2, j]
 ```
-\normalsize
+
 
 ## ICAR Model:  `poisson_icar.stan`
 
 This file is in directory `stan/poisson_icar.stan`.
 
-**Python**
-```{python}
-poisson_icar_model_file = os.path.join('stan', 'poisson_icar.stan')
-
-with open(poisson_icar_model_file, 'r') as file:
-    contents = file.read()
-    print(contents)
-```
-
-**R**
 ```{r}
 poisson_icar_model_file = file.path('stan', 'poisson_icar.stan')
-cat(readlines(file_path), sep="\n")
+cat(readLines(poisson_icar_model_file), sep="\n")
 ```
-
-
 
 ## Data Prep
 
@@ -219,21 +127,6 @@ cat(readlines(file_path), sep="\n")
   + Python package `libpysal`
   + R package `spdep`
 
-**Python**
-```{python}
-brooklyn_nbs_adj =  brooklyn_nbs.to_adjlist(remove_symmetric=True)
-print(type(brooklyn_nbs_adj))
-brooklyn_nbs_adj.head(10)
-```
-```{python}
-# create np.ndarray from columns in adjlist, increment indices by 1
-j1 = brooklyn_nbs_adj['focal'] + 1
-j2 = brooklyn_nbs_adj['neighbor'] + 1
-edge_pairs = np.vstack([j1, j2])
-edge_pairs
-```
-
-**R**
 ```{r}
 brooklyn_nbs_adj = nbs_to_adjlist(brooklyn_nbs)
 brooklyn_nbs_adj[1:2, 1:10]
@@ -241,29 +134,6 @@ brooklyn_nbs_adj[1:2, 1:10]
 
 #### Assemble the input data 
 
-**Python**
-```{python}
-design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
-
-design_mat = brooklyn_geodata[design_vars].to_numpy()
-design_mat[:, 1] = np.log(design_mat[:, 1])
-design_mat[:, 2] = np.log(design_mat[:, 2])
-
-pd.DataFrame(data=design_mat).describe()
-```
-
-```{python}
-pois_icar_data = {"N":brooklyn_geodata.shape[0],
-             "y":brooklyn_geodata['count'].astype('int'),
-             "E":brooklyn_geodata['kid_pop'].astype('int'),
-             "K":4,
-             "xs":design_mat,
-             "N_edges": edge_pairs.shape[1],
-             "neighbors": edge_pairs
-}
-```
-
-**R**
 ```{r}
 design_mat <- as.data.frame(brooklyn_geodata) %>%
   select(pct_pubtransit, med_hh_inc, traffic, frag_index) %>%
@@ -279,7 +149,7 @@ pois_icar_data <- list(
   E = as.integer(brooklyn_geodata$kid_pop),
   K = 4,
   xs = design_mat,
-  N_edges = ncols(brooklyn_nbs_adj)
+  N_edges = ncol(brooklyn_nbs_adj),
   neighbors = brooklyn_nbs_adj
 )
 ```
@@ -288,28 +158,12 @@ pois_icar_data <- list(
 
 #### Model is compiled (as needed) on instantiation 
 
-**Python**
-```{python}
-pois_icar_mod = CmdStanModel(stan_file=poisson_icar_model_file)
-```
-
-
-**R**
 ```{r}
 pois_icar_mod = cmdstan_model(stan_file=poisson_icar_model_file)
 ```
 
 #### Run the NUTS-HMC sampler, summarize results
 
-**Python**
-```{python}
-pois_icar_fit = pois_icar_mod.sample(data=pois_icar_data)
-pois_icar_fit.summary().round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
-```
-
-
-**R**
 ```{r}
 pois_icar_fit = pois_icar_mod$sample(data=pois_icar_data, parallel_chains=cores)
 pois_icar_fit 
@@ -317,16 +171,6 @@ pois_icar_fit
 
 #### Compare to ordinary random effects model
 
-```{python}
-pois_re_mod = CmdStanModel(stan_file=os.path.join(
-  'stan', 'poisson_re.stan'))
-pois_re_fit = pois_re_mod.sample(data=pois_icar_data)
-pois_re_fit.summary().round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
-```
-
-
-**R**
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_re.stan')) 
@@ -345,21 +189,6 @@ In Python, we use `ArviZ`.
 
 #### ICAR model
 
-**Python**
-```{python}
-idata_pois_icar = az.from_cmdstanpy(
-    pois_icar_fit,
-    posterior_predictive="y_rep",
-    dims={"betas": ["covariates"]},
-    coords={"covariates": design_vars},
-    observed_data={"y": pois_icar_data['y']}
-)
-idata_pois_icar
-
-az.plot_ppc(idata_pois_icar, data_pairs={"y":"y_rep"})
-```
-
-**R**
 ```{r}
 y_rep <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
 ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
@@ -368,19 +197,6 @@ ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
 
 #### RE model
 
-**Python**
-```{python}
-idata_pois_re = az.from_cmdstanpy(
-    pois_re_fit,
-    posterior_predictive="y_rep",
-    dims={"betas": ["covariates"]},
-    coords={"covariates": design_vars},
-    observed_data={"y": pois_icar_data['y']}
-)
-az.plot_ppc(idata_pois_re, data_pairs={"y":"y_rep"})
-```
-
-**R**
 ```{r}
 y_rep <- as_draws_matrix(pois_re_fit$draws("y_rep"))
 ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
@@ -389,13 +205,6 @@ ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
 
 ### Leave-one-out cross-validation (LOO)
 
-**Python**
-```{python}
-az.compare({"poisson_icar":idata_pois_icar, "poisson_re":idata_pois_re})
-```
-
-
-**R**
 ```{r}
 loo_icar_pois <- loo(pois_icar_fit$draws("log_lik"), save_psis = TRUE)
 loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)

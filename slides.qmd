@@ -646,7 +646,8 @@ penalty term based on the distance between the values of neighboring regions
 
 $$ p(\phi) \propto \exp \left\{ {- \frac{1}{2}} \sum_{i \sim j}{({\phi}_i - {\phi}_j)}^2 \right\} $$
 
-Use Stan's vectorized operations to compute log probability density:
+Use Stan's vectorized operations to compute log probability density
+
 \fontsize{9pt}{9.4}\selectfont
 ```
    target += -0.5 * dot_self(phi[node1] - phi[node2]);
@@ -657,10 +658,9 @@ Use Stan's vectorized operations to compute log probability density:
 Encode neighbor information as graph edgeset, i.e. pairs of indices for neighbors $i, j$:
 \fontsize{9pt}{9.4}\selectfont
 ```
-  int<lower=0> N;
-  int<lower=0> N_edges;
-  int<lower=1, upper=N> node1[N_edges];
-  int<lower=1, upper=N> node2[N_edges];
+  int<lower = 0> N;  // number of areal regions
+  int<lower = 0> N_edges;  // number of neighbor pairs
+  array[2, N_edges] int<lower = 1, upper = N> neighbors;  // node[1, j] adjacent to node[2, j]
 ```
 \normalsize
 

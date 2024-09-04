@@ -26,7 +26,7 @@ model {
   beta0 ~ std_normal();
   betas ~ std_normal();
   theta ~ std_normal();
-  sigma ~ normal(0, 5);
+  sigma ~ std_normal();
 }
 generated quantities {
   real beta_intercept = beta0 - dot_product(means_xs, betas);  // adjust intercept

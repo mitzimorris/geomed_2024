@@ -642,7 +642,7 @@ penalty term based on the distance between the values of neighboring regions
 * $\phi$ is non-identifiable, constant added to $\phi$ washes out of ${\phi}_i - {\phi}_j$
   + sum-to-zero constraint centers $\phi$
 
-# Stan ICAR Model Implementation
+# Stan ICAR Model
 
 $$ p(\phi) \propto \exp \left\{ {- \frac{1}{2}} \sum_{i \sim j}{({\phi}_i - {\phi}_j)}^2 \right\} $$
 
@@ -660,7 +660,31 @@ Encode neighbor information as graph edgeset, i.e. pairs of indices for neighbor
 ```
   int<lower = 0> N;  // number of areal regions
   int<lower = 0> N_edges;  // number of neighbor pairs
-  array[2, N_edges] int<lower = 1, upper = N> neighbors;  // node[1, j] adjacent to node[2, j]
+  array[2, N_edges] int<lower = 1, upper = N> neighbors; // columnwise adjacent
+```
+\normalsize
+
+# Stan ICAR Model Implementation
+
+\fontsize{9pt}{9.4}\selectfont
+```
+functions {
+  real standard_icar_lpdf(vector phi, array[ , ] int adjacency, real epsilon) {
+    return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
+      + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
+ }
+}
+data {
+  int<lower=0> N;
+  int<lower=0> N_edges;
+  array[2, N_edges] int<lower=1, upper=N> neighbors;
+}
+parameters {
+  vector[N] phi;
+}
+model {
+  phi ~ standard_icar(neighbors, 0.001);
+}
 ```
 \normalsize
 
@@ -668,13 +692,122 @@ Encode neighbor information as graph edgeset, i.e. pairs of indices for neighbor
 # Notebook: ICAR model
 
 * Add a spatial random effects component to the base model.
-* Check fits, compare models
+* Check fits, compare ICAR, ordinary random effects models
 
 * Handouts
   + `h4_icar.html`
   + R version `h4_icar.Rmd`
   + Python version: `h4_icar.ipynb`
 
+
+# Besag York Mollié (1991) BYM Model
+
+* Acount for both spatial and heterogenous variation
+
+* Lognormal Poisson regression ${\eta}_i = \mu + x \beta + \phi + \theta$
+
+* $\mu$ is the fixed intercept.
+
+* $x$ is the design matrix, $\beta$ is vector of regression coefficients.
+
+* $\phi$ is an ICAR spatial component
+
+* $\theta$ is an vector of ordinary random-effects components.
+
+* MCMC samplers require strong hyperpriors on $\phi$ and $\theta$.
+    + Bernardinelli et. al. (1995): hyperpriors depend on average number of neighbors, i.e., hyperpriors depend on data.
+
+
+# BYM2 model:  Riebler et al, 2016
+
+* Model combination of spatial and non-spatial components $\phi + \theta$ as
+$$\left( (\sqrt{\, {\rho} / s}\, \ )\,\phi^* + (\sqrt{1-\rho})\,\theta^* \right) \sigma $$
+where:
+  + $\sigma\geq 0$ is the overall standard deviation.
+  + $\rho \in [0,1]$ - proportion of spatial variance.
+  + $\phi^*$ is the ICAR component.
+  + $\theta^* \sim N(0, 1)$ is the vector of ordinary random effects
+  + $s$ is a scaling factor s.t. $\operatorname{Var}(\phi_i) \approx 1$; $s$ is data.
+
+\tightlist
+* Follows a series of improvements, notably Leroux 2000
+  + single scale parameter plus mixing parameter
+
+
+# BYM2 model scaling factor
+
+Besag 1974: joint specification of $\phi$ is multivariate normal, zero-centered
+$$\phi \sim \mathrm{N}(0, Q^{-1}).$$
+
+* The variance of $\phi$ is specified as the precision matrix $Q$,
+  + inverse of the covariance matrix $\Sigma$, i.e. $\Sigma = Q^{-1}$
+
+* The variance of $\theta$ is a scalar.
+
+* To clearly interpret $\sigma$ (variance of combined components), for each $i$, $\operatorname{Var}(\phi_i) \approx \operatorname{Var}(\theta_i) \approx 1$.
+
+* Scale the proportion of variance $\rho$ contributed by $\phi$ 
+
+# Computing ICAR scaling factor
+
+Goal: for each $i$, $\operatorname{Var}(\phi_i) \approx 1$ \
+"the geometric mean of the average marginal variance of the areal units is $1$"
+
+1. Construct Q, the precision matrix for to the neighborhood network\
+convert the edgelist to an adjacency matrix
+
+2. Add a small amount of noise to the diagonal elements of Q (positive definite)
+
+3. Compite Q_inv, the covariance matrix - **computationally expensive**
+
+4. Compute the geometric mean of the diagonal elements of Q_inv\
+`tau = exp(mean(log(x)))`
+
+
+
+# BYM2 Stan Implementation, Functions Block
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+functions {
+  /**
+   * Compute ICAR, wse soft-sum-to-zero constraint for identifiability
+   *
+   * @param phi vector of varying effects
+   * @param adjacency parallel arrays of indexes of adjacent elements of phi
+   * @param epsilon allowed variance for soft centering
+   * @return ICAR log probability density
+   * @reject if the the adjacency matrix does not have two rows
+   */
+  real standard_icar_lpdf(vector phi, array[ , ] int adjacency, real epsilon) {
+    if (size(adjacency) != 2)
+      reject("require 2rows for adjacency array;",
+             " found rows = ", size(adjacency));
+    return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
+      + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
+  }
+}
+```
+\normalsize
+
+# BYM2 Stan Implementation, Data Block
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+data {
+  int<lower=0> N;
+  array[N] int<lower=0> y; // count outcomes
+  vector<lower=0>[N] E; // exposure
+  int<lower=1> K; // num covariates
+  matrix[N, K] xs; // design matrix
+
+  // spatial structure
+  int<lower = 0> N_edges;  // number of neighbor pairs
+  array[2, N_edges] int<lower = 1, upper = N> neighbors;  // columnwise adjacent
+
+  real tau; // scaling factor
+}
+```
 
 
 # References

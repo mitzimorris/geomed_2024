@@ -3,27 +3,7 @@ functions {
    * Return the log probability density for the vector of coefficients
    * under the ICAR model with unit variance, where the second two
    * arguments are parallel vectors of coefficients for adjacent regions.
-   * 
-   * @param phi vector of varying effects
-   * @param b1 parallel vector of elements of phi
-   * @param b2 second parallel vector of adjacent elemens of phi
-   * @param epsilon allowed variance for soft centering
-   * @return ICAR log density
-   */
-  real soft_ctr_std_icar_lpdf(vector phi, vector b1, vector b2, real epsilon) {
-    return -0.5 * dot_self(b1 - b2)  // equiv normal_lpdf(b1 | b2, 1)
-      + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
-  }
-
-  /**
-   * Return the log probability density of the specified vector of
-   * coefficients under the ICAR model with unit variance, where
-   * adjacency is determined by the adjacency array. The adjacency
-   * array contains two parallel arrays of adjacent element indexes.
-   * For example, a series of four coefficients phi[1:4] making up a
-   * time series would have adjacency array {{1, 2, 3}, {2, 3, 4}},
-   * signaling that coefficient 1 is adjacent to coefficient 2, 2
-   * adjacent to 3, and 3 adjacent to 4.
+   * Use soft-sum-to-zero constraint for identifiability
    *
    * @param phi vector of varying effects
    * @param adjacency parallel arrays of indexes of adjacent elements of phi
@@ -35,7 +15,8 @@ functions {
     if (size(adjacency) != 2)
       reject("require 2rows for adjacency array;",
              " found rows = ", size(adjacency));
-    return soft_ctr_std_icar_lpdf(phi | phi[adjacency[1]], phi[adjacency[2]], epsilon);
+    return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
+      + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
   }
 }
 data {
@@ -47,7 +28,7 @@ data {
 
   // spatial structure
   int<lower = 0> N_edges;  // number of neighbor pairs
-  array[2, N_edges] int<lower = 1, upper = N> neighbors;  // node[1, j] adjacent to node[2, j]
+  array[2, N_edges] int<lower = 1, upper = N> neighbors;  // columnwise adjacent
 }
 transformed data {
   vector[N] log_E = log(E);

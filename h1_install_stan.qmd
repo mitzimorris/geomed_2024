@@ -264,8 +264,8 @@ Using the appropriate package installer, install the following packages, as need
 |----------------|----------------|------------------------------------|
 | **GIS Data**   |  [`sf`](https://r-spatial.github.io/sf/), [`spdep`](https://r-spatial.github.io/spdep/) | [`geopandas`](https://geopandas.org/en/stable/), [`libpysal`](https://pysal.org/libpysal/)         |
 | **Data**       | `tidyverse`    | `numpy`, `pandas`                  |
+| **Graph Data** | `igraph`    |
 | **Plotting**   | `ggplot2`      | [`plotnine`](https://plotnine.org/), [`splot`](https://pysal.org/notebooks/viz/splot/intro.html), `matplotlib`  |
-
 
 ## Notebook Viewers
 

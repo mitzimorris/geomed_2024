@@ -169,7 +169,7 @@ pois_icar_fit = pois_icar_mod$sample(data=pois_icar_data, parallel_chains=cores)
 pois_icar_fit 
 ```
 
-#### Compare to ordinary random effects model
+## Model Comparison: ICAR vs. ordinary random effects
 
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
@@ -177,8 +177,6 @@ pois_re_mod = cmdstan_model(stan_file=file.path(
 pois_re_fit = pois_re_mod$sample(data=pois_icar_data, parallel_chains=cores)
 pois_re_fit 
 ```
-
-## Model Comparison: ICAR vs. ordinary random effects
 
 Which model provides a better fit (on the Brooklyn subset of the data)?
 

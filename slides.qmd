@@ -750,9 +750,12 @@ $$\phi \sim \mathrm{N}(0, Q^{-1}).$$
 
 # Computing ICAR scaling factor
 
+\vspace{-0.1in}
 Goal: for each $i$, $\operatorname{Var}(\phi_i) \approx 1$ \
 "the geometric mean of the average marginal variance of the areal units is $1$"
 
+\vspace*{8pt}
+\tightlist
 1. Construct Q, the precision matrix for to the neighborhood network\
 convert the edgelist to an adjacency matrix
 
@@ -763,7 +766,8 @@ convert the edgelist to an adjacency matrix
 4. Compute the geometric mean of the diagonal elements of Q_inv\
 `tau = exp(mean(log(x)))`
 
-
+\vspace*{8pt}
+*The scaling factor comes in as data* - must be computed in either Python or R
 
 # BYM2 Stan Implementation, Functions Block
 
@@ -809,6 +813,27 @@ data {
 }
 ```
 
+# BYM2 Stan Implementation, Parameters, Model Blocks
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+parameters {
+  real beta0; // intercept
+  vector[K] betas; // covariates
+  real<lower=0, upper=1> rho; // proportion of spatial variance
+  vector[N] phi; // spatial random effects
+  vector[N] theta; // heterogeneous random effects
+  real<lower = 0> sigma;  // scale of combined effects
+}
+transformed parameters {
+  vector[N] gamma = (sqrt(1 - rho) * theta + sqrt(rho / tau) * phi);  // BYM2
+}
+model {
+  y ~ poisson_log(log_E + beta0 + xs_centered * betas + gamma * sigma);
+  rho ~ beta(0.5, 0.5);
+  phi ~ standard_icar(neighbors, 0.001);
+  // std_normal() prior on all other params
+```
 
 # References
 

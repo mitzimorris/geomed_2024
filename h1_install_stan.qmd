@@ -4,7 +4,7 @@ subtitle: Instructions for GeoMed Workshop
 
 format:
   html:
-    css: ../theming/quarto_styles.css 
+    css: theming/quarto_styles.css 
     embed-resources: true
     toc: true
     toc-location: left

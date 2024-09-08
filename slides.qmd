@@ -366,9 +366,9 @@ sigma ~ normal(0, 1);
 [Log probability increment statements](https://mc-stan.org/docs/reference-manual/statements.html#log-probability-increment-vs.-distribution-statement)
 \fontsize{9pt}{9.4}\selectfont
 ```stan
-target += normal_lpdf(y | mu, sigma);
-target += normal_lpdf(mu | 0, 10);
-target += normal_lpdf(sigma | 0, 1);
+target += normal_lupdf(y | mu, sigma);
+target += normal_lupdf(mu | 0, 10);
+target += normal_lupdf(sigma | 0, 1);
 ```
 \normalsize
 
@@ -671,7 +671,7 @@ Encode neighbor information as graph edgeset, i.e. pairs of indices for neighbor
 functions {
   real standard_icar_lpdf(vector phi, array[ , ] int adjacency, real epsilon) {
     return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
-      + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
+      + normal_lupdf(sum(phi) | 0, epsilon * rows(phi));
  }
 }
 data {
@@ -788,7 +788,7 @@ functions {
       reject("require 2rows for adjacency array;",
              " found rows = ", size(adjacency));
     return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
-      + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
+      + normal_lupdf(sum(phi) | 0, epsilon * rows(phi));
   }
 }
 ```
@@ -834,6 +834,18 @@ model {
   phi ~ standard_icar(neighbors, 0.001);
   // std_normal() prior on all other params
 ```
+
+# Notebook: BYM2 model
+
+* Implement the BYM2 model.
+* Check fits, compare to ICAR, ordinary random effects models
+
+* Handouts
+  + `h5_bym2.html`
+  + R version `h5_bym2.Rmd`  (or `h5_bym2.qmd`)
+  + Python version: `h5_bym2.ipynb`
+
+
 
 # References
 

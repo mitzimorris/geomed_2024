@@ -82,13 +82,13 @@ This file is in directory `stan/poisson.stan`.
 
 ```{r}
 poisson_model_file = file.path('stan', 'poisson.stan')
-cat(readlines(file_path), sep="\n")
+cat(readLines(poisson_model_file), sep="\n")
 ```
 
 #### Model is compiled (as needed) on instantiation 
 
 ```{r}
-pois_mod = CmdStanModel(stan_file=poisson_model_file)
+pois_mod = cmdstan_model(stan_file=poisson_model_file)
 ```
 
 #### Run the NUTS-HMC sampler 

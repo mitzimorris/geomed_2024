@@ -1,6 +1,6 @@
 functions {
   /**
-   * Compute ICAR, wse soft-sum-to-zero constraint for identifiability
+   * Compute ICAR, use soft-sum-to-zero constraint for identifiability
    *
    * @param phi vector of varying effects
    * @param adjacency parallel arrays of indexes of adjacent elements of phi
@@ -13,7 +13,7 @@ functions {
       reject("require 2rows for adjacency array;",
              " found rows = ", size(adjacency));
     return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
-      + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
+      + normal_lupdf(sum(phi) | 0, epsilon * rows(phi));
   }
 }
 data {

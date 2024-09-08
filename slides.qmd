@@ -771,31 +771,6 @@ convert the edgelist to an adjacency matrix
 \vspace*{8pt}
 *The scaling factor comes in as data* - must be computed in either Python or R
 
-# BYM2 Stan Implementation, Functions Block
-
-\fontsize{9pt}{9.4}\selectfont
-```stan
-functions {
-  /**
-   * Compute ICAR, use soft-sum-to-zero constraint for identifiability
-   *
-   * @param phi vector of varying effects
-   * @param adjacency parallel arrays of indexes of adjacent elements of phi
-   * @param epsilon allowed variance for soft centering
-   * @return ICAR log probability density
-   * @reject if the the adjacency matrix does not have two rows
-   */
-  real standard_icar_lpdf(vector phi, array[ , ] int adjacency, real epsilon) {
-    if (size(adjacency) != 2)
-      reject("require 2rows for adjacency array;",
-             " found rows = ", size(adjacency));
-    return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
-      + normal_lupdf(sum(phi) | 0, epsilon * rows(phi));
-  }
-}
-```
-\normalsize
-
 # BYM2 Stan Implementation, Data Block
 
 \fontsize{9pt}{9.4}\selectfont
@@ -839,7 +814,7 @@ model {
 \normalsize
 
 
-# Notebook: BYM2 model
+# Notebook: BYM2 Model
 
 * Implement the BYM2 model.
 * Check fits, compare to ICAR, ordinary random effects models
@@ -856,11 +831,95 @@ model {
 [Available on arXiv](https://arxiv.org/pdf/1705.04854.pdf)
 
 \tightlist
-* scale each connected component of size larger than one as in BYM2 model
-* scale islands with standard Normal
+* Scale each connected component of size larger than one as in BYM2 model
+* Scale islands with standard Normal
+
+# Computing ICAR scaling factor for each component
 
 
-# BYM2 for Spatio-Temporal  
+* Compute cardinality of each component
+
+* Scaling factor for singletons is 1
+
+* Scaling factor for multi-node component is computed as before
+    * Get subset of regions for that component
+    * Compute scaling_factor
+
+* Scale each region according to scaling factor for the component they belong to.
+
+# BYM2 Islands, Compute ICAR Function
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+  /**
+   * Compute ICAR, use soft-sum-to-zero constraint for identifiability
+   * ...
+   */
+  real standard_icar_lpdf(vector phi,
+			  array[ , ] int adjacency,
+			  array[] int singletons,
+			  real epsilon) {
+    if (size(adjacency) != 2)
+      reject("require 2rows for adjacency array;",
+             " found rows = ", size(adjacency));
+    return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
+      + normal_lpdf(phi[singletons] | 0, 1)
+      + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
+  }
+```
+\normalsize
+
+
+# BYM2 Islands Data Block
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+  int<lower=0> N;
+  array[N] int<lower=0> y; // count outcomes
+  vector<lower=0>[N] E; // exposure
+  int<lower=1> K; // num covariates
+  matrix[N, K] xs; // design matrix
+  // spatial structure
+  int<lower = 0> N_edges;  // number of neighbor pairs
+  array[2, N_edges] int<lower = 1, upper = N> neighbors;  // columnwise adjacent
+  vector<lower = 0>[N] taus; // per-node scaling factor
+  int<lower=0, upper=N> N_singletons;
+  array[N_singletons] int<lower=0, upper=N> singletons;
+```
+\normalsize
+
+# BYM2 Transformed Parameters, Model Blocks
+
+\fontsize{9pt}{9.4}\selectfont
+```stan
+transformed parameters {
+  vector[N] gamma = (sqrt(1 - rho) * theta + sqrt(rho / taus) .* phi);  // BYM2
+}
+model {
+  y ~ poisson_log(log_E + beta0 + xs_centered * betas + gamma * sigma);
+  rho ~ beta(0.5, 0.5);
+  phi ~ standard_icar(neighbors, singletons, 0.001);
+  beta0 ~ std_normal();
+  betas ~ std_normal();
+  theta ~ std_normal();
+  sigma ~ std_normal();
+}
+```
+\normalsize
+
+
+# Notebook: BYM2_Islands Model
+
+* Implement the BYM2 model for all of NYC.
+
+
+* Handouts
+  + `h6_bym2_islands.html`
+  + R version `h6_bym2_islands.Rmd`  (or `h6_bym2_islands.qmd`)
+  + Python version: `h6_bym2_islands.ipynb`
+
+
+# BYM2 Model for Spatio-Temporal Smoothing
 
 \includegraphics[width=0.7\textwidth]{img/ward_2023.jpg}
 

@@ -10,7 +10,7 @@ functions {
    */
   real standard_icar_lpdf(vector phi, array[ , ] int adjacency, real epsilon) {
     if (size(adjacency) != 2)
-      reject("require 2rows for adjacency array;",
+      reject("require 2 rows for adjacency array;",
              " found rows = ", size(adjacency));
     return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
       + normal_lupdf(sum(phi) | 0, epsilon * rows(phi));

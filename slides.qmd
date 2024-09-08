@@ -16,6 +16,8 @@ format:
     dev: png 
     linkcolor: "DarkBlue"
     urlcolor: "DarkBlue"
+execute:
+  eval: false
 ---
 
 # Overview
@@ -33,7 +35,7 @@ Learn how to use existing models and develop new ones.
 
 * ICAR Model for Spatial Smoothing
 
-* BYM2 Model for Spatial and Instrinsic Random Effects
+* BYM2 Model for Spatial and Intrinsic Random Effects
 
 * Extensions to the BYM2 Model
 
@@ -314,7 +316,7 @@ functions {
 * `generated quantities` - executed every *iteration* of the sampler
 
 \vspace*{4pt}
-* After every sampler interation, program outputs current values of all variables\
+* After every sampler iteration, program outputs current values of all variables\
 in parameters, transformed parameters, and generated quantities blocks.
 
 # The Stan Language
@@ -702,7 +704,7 @@ model {
 
 # Besag York Mollié (1991) BYM Model
 
-* Acount for both spatial and heterogenous variation
+* Account for both spatial and heterogenous variation
 
 * Lognormal Poisson regression ${\eta}_i = \mu + x \beta + \phi + \theta$
 
@@ -775,7 +777,7 @@ convert the edgelist to an adjacency matrix
 ```stan
 functions {
   /**
-   * Compute ICAR, wse soft-sum-to-zero constraint for identifiability
+   * Compute ICAR, use soft-sum-to-zero constraint for identifiability
    *
    * @param phi vector of varying effects
    * @param adjacency parallel arrays of indexes of adjacent elements of phi
@@ -834,6 +836,8 @@ model {
   phi ~ standard_icar(neighbors, 0.001);
   // std_normal() prior on all other params
 ```
+\normalsize
+
 
 # Notebook: BYM2 model
 
@@ -845,17 +849,71 @@ model {
   + R version `h5_bym2.Rmd`  (or `h5_bym2.qmd`)
   + Python version: `h5_bym2.ipynb`
 
+# BYM2 for Disconnected Regions and Islands
+
+\includegraphics[width=0.9\textwidth]{img/bym2_disconnected.png}
+
+[Available on arXiv](https://arxiv.org/pdf/1705.04854.pdf)
+
+\tightlist
+* scale each connected component of size larger than one as in BYM2 model
+* scale islands with standard Normal
 
 
-# References
+# BYM2 for Spatio-Temporal  
 
+\includegraphics[width=0.7\textwidth]{img/ward_2023.jpg}
+
+\tightlist
+* Extend the BYM2 model to include a daily-level random effect, i.e. three components:
+  + Spatial effect $\theta_i$
+  + Ordinary per-region random effect $\phi_i$
+  + Ordinary per-region, per_day random effect $\phi_{i, t}$
+  + Proportion of variance $\rho$ is a simplex
+
+
+# Stan References and Tutorials
+
+\tightlist
 
 * \href{https://mc-stan.org/docs/stan-users-guide/index.html}{Stan User's Guide}
+
 * \href{https://bob-carpenter.github.io/stan-getting-started/stan-getting-started.html}{Getting Started with Bayesian Statistics}
-* \href {https://www.usgs.gov/faqs/what-geographic-information-system-gis}{Geographic Information System}(GIS)
-* \href{https://github.com/mitzimorris/ljubljiana_lecture/blob/main/data_prep_spatial_maps.ipynb}{Map-making with Plotnine}
+
+* Hoffman and Gelman, 2014: [The No-U-Turn Sampler: Adaptively Setting Path Lengths in Hamiltonian Monte Carlo](http://jmlr.org/papers/v15/hoffman14a.html)
 
 * Course notes: *Software for MCMC* from Odd Kolbjørnsen, Spring 2023, Oslo Uni\
 \fontsize{9pt}{9.4}\selectfont
 www.uio.no/studier/emner/matnat/math/STK4051/v23/timeplan/lecture_12_softwareformcmc.pdf
 \normalsize
+
+
+# BYM2 Model References and Tutorials
+
+* Riebler et al., 2016: [An intuitive Bayesian spatial model for disease mapping that accounts for scaling](https://arxiv.org/abs/1601.01180)
+
+* Freni-Sterrantino et al.,2018: [A note on intrinsic conditional autoregressive models for disconnected graphs](https://arxiv.org/pdf/1705.04854.pdf)
+
+* Morris et al., 2019: [Bayesian Hierarchical Spatial Models: Implementing the Besag York Mollié Model in Stan](https://www.sciencedirect.com/science/article/abs/pii/S1877584518301175)
+
+* Ward et. al., 2023 [Bayesian spatial modelling of localised SARS-CoV-2 transmission through mobility networks across England](https://doi.org/10.1371/journal.pcbi.1011580)
+
+* Stan Case Study: \href{https://mc-stan.org/users/documentation/case-studies/icar_stan.html}{Spatial Models in Stan: Intrinsic Auto-Regressive Models for Areal Data}
+
+
+
+# Other Epi Models in Stan
+
+* Grinsztajn et. al. [Bayesian workflow for disease transmission modeling in Stan](https://onlinelibrary.wiley.com/doi/10.1002/sim.9164)
+
+### HMMs in Stan
+
+* Stan Case Study: \href{https://mc-stan.org/users/documentation/case-studies/hmm-example.html}{HMM Example}
+
+* \href{https://mc-stan.org/docs/functions-reference/hidden_markov_models.html}{Hidden Markov Models}
+
+* \href{https://mc-stan.org/docs/stan-users-guide/latent-discrete.html}{Stan User's Latent Discrete Parameters Chapter}
+
+# Many Thanks!
+
+#### Questions and Discussion

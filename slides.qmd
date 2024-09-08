@@ -858,10 +858,12 @@ model {
   real standard_icar_lpdf(vector phi,
 			  array[ , ] int adjacency,
 			  array[] int singletons,
-			  real epsilon) {
+			  real epsilon)
+  {
     if (size(adjacency) != 2)
-      reject("require 2rows for adjacency array;",
+      reject("require 2 rows for adjacency array;",
              " found rows = ", size(adjacency));
+
     return -0.5 * dot_self(phi[adjacency[1]] - phi[adjacency[2]])
       + normal_lpdf(phi[singletons] | 0, 1)
       + normal_lpdf(sum(phi) | 0, epsilon * rows(phi));
@@ -874,17 +876,20 @@ model {
 
 \fontsize{9pt}{9.4}\selectfont
 ```stan
-  int<lower=0> N;
-  array[N] int<lower=0> y; // count outcomes
-  vector<lower=0>[N] E; // exposure
-  int<lower=1> K; // num covariates
-  matrix[N, K] xs; // design matrix
-  // spatial structure
-  int<lower = 0> N_edges;  // number of neighbor pairs
-  array[2, N_edges] int<lower = 1, upper = N> neighbors;  // columnwise adjacent
-  vector<lower = 0>[N] taus; // per-node scaling factor
-  int<lower=0, upper=N> N_singletons;
-  array[N_singletons] int<lower=0, upper=N> singletons;
+int<lower=0> N;
+array[N] int<lower=0> y; // count outcomes
+vector<lower=0>[N] E; // exposure
+int<lower=1> K; // num covariates
+matrix[N, K] xs; // design matrix
+
+// spatial structure
+int<lower = 0> N_edges;  // number of neighbor pairs
+array[2, N_edges] int<lower = 1, upper = N> neighbors;  // columnwise adjacent
+
+vector<lower = 0>[N] taus; // per-node scaling factor
+
+int<lower=0, upper=N> N_singletons;
+array[N_singletons] int<lower=0, upper=N> singletons;
 ```
 \normalsize
 
@@ -895,10 +900,13 @@ model {
 transformed parameters {
   vector[N] gamma = (sqrt(1 - rho) * theta + sqrt(rho / taus) .* phi);  // BYM2
 }
+
 model {
   y ~ poisson_log(log_E + beta0 + xs_centered * betas + gamma * sigma);
   rho ~ beta(0.5, 0.5);
+
   phi ~ standard_icar(neighbors, singletons, 0.001);
+
   beta0 ~ std_normal();
   betas ~ std_normal();
   theta ~ std_normal();

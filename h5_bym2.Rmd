@@ -1,0 +1,234 @@
+---
+title: "Implementing the BYM2 Model in Stan"
+format:
+  html:
+    css: theming/quarto_styles.css 
+    syntax-definitions:
+      - theming/stan.xml
+    embed-resources: true
+    toc: true
+    toc-location: left
+    grid:
+      body-width: 1000px
+---
+
+## Notebook Setup
+
+Import all libraries, load the NYC study data.
+
+```{r}
+library(sf)
+library(spdep) |> suppressPackageStartupMessages()
+library(ggplot2)
+library(tidyverse) |> suppressPackageStartupMessages()
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(loo)
+library(parallel)
+library(igraph)
+cores = floor(parallel::detectCores() / 2)
+
+
+# helper function:  create edgelist for ICAR component
+nbs_to_adjlist <- function(nb) {
+    adj_matrix = nb2mat(nb,style="B")
+    t(as_edgelist(graph_from_adjacency_matrix(adj_matrix, mode="undirected")))
+}
+```
+
+```{r}
+nyc_geodata = st_read("data/nyc_study.geojson")
+names(nyc_geodata)
+```
+
+## Disconnected Components (and islands)
+
+New York city consists of several islands; only the Bronx is part of the mainland; Brooklyn and Queens are part of Long Island, plus smaller islands City Island, Roosevelt Island, and the Rockaways.
+
+*This is a problem for the ICAR model, which operates on a fully connected graph (single component)*
+
+* For the NYC analysis paper, we hand edited the map of NYC (in R) to create a fully connected network graph.
+
+* For this notebook, we will restrict out attention to Brooklyn, the largest borough in NYC, which is a single network component.
+
+
+```{r}
+brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
+brooklyn_nbs = poly2nb(brooklyn_geodata, queen=FALSE)
+brooklyn_coords = st_coordinates(st_centroid(brooklyn_geodata['geometry']))
+plot(st_geometry(brooklyn_geodata), col='skyblue')
+plot(brooklyn_nbs, coords=brooklyn_coords, add=TRUE, pch=20, cex=0.6)
+```
+
+```{r}
+summary(brooklyn_nbs)
+```
+
+
+## From ICAR to BYM2
+
+* Combines both ICAR component $\phi$ and ordinary random effects $\theta$ as
+$$\left( (\sqrt{\, {\rho} / s}\, \ )\,\phi^* + (\sqrt{1-\rho})\,\theta^* \right) \sigma $$
+
+* Parameter $\rho$ answers the question:  how much of the observed variance is spatial?
+
+* Don't need to run analysis, e.g. Moran's I - the model sorts it out for you.
+
+## BYM2 Model:  `bym2.stan`
+
+This file is in directory `stan/bym2.stan`.
+
+```{r}
+bym2_model_file = file.path('stan', 'bym2.stan')
+cat(readLines(bym2_model_file), sep="\n")
+```
+
+## Data Prep
+
+### Get edgeset
+
+- Compute this automatically from `nyc_geodata` spatial geometry component
+  + Python package `libpysal`
+  + R package `spdep`
+
+```{r}
+brooklyn_nbs_adj = nbs_to_adjlist(brooklyn_nbs)
+brooklyn_nbs_adj[1:2, 1:10]
+```
+
+### Compute scaling factor `tau`
+
+Computed in R:  value 0.658
+
+R Script:
+```r
+# computes the inverse of a sparse precision matrix
+# sub-optimal implementation - better to use INLA
+q_inv_dense <- function(Q, A = NULL) {
+  Sigma <- Matrix::solve(Q)   ## need sparse matrix solver
+  if (is.null(A))
+    return(Sigma)
+  else {
+    A <- matrix(1,1, nrow(Sigma))
+    W <- Sigma %*% t(A)
+    Sigma_const <- Sigma - W %*% solve(A %*% W) %*% t(W)
+    return(Sigma_const)
+  }
+}
+
+get_scaling_factor = function(adj_list) {
+    N = ncol(adj_list)
+    # Build the adjacency matrix using edgelist
+    adj_matrix = sparseMatrix(i=adj_list[1, ], j=adj_list[2, ], x=1, symmetric=TRUE)
+
+    # Create ICAR precision matrix  (diag - adjacency): this is singular
+    Q =  Diagonal(N, rowSums(adj_matrix)) - adj_matrix
+    # Add a small jitter to the diagonal for numerical stability (optional but recommended)
+    Q_pert = Q + Diagonal(N * max(diag(Q)) * sqrt(.Machine$double.eps)
+
+    # Compute the diagonal elements of the covariance matrix
+    Q_inv = q_inv_dense(Q_pert, adj_matrix)
+
+    # Compute the geometric mean of the variances, which are on the diagonal of Q.inv
+    return(exp(mean(log(diag(Q_inv)))))
+}
+```
+
+#### Assemble the input data 
+
+```{r}
+design_mat <- as.data.frame(brooklyn_geodata) %>%
+  select(pct_pubtransit, med_hh_inc, traffic, frag_index) %>%
+  mutate(med_hh_inc = log(med_hh_inc),
+         traffic = log(traffic))
+summary(design_mat)
+```
+
+```{r}
+bym2_data <- list(
+  N = nrow(brooklyn_geodata),
+  y = as.integer(brooklyn_geodata$count),
+  E = as.integer(brooklyn_geodata$kid_pop),
+  K = 4,
+  xs = design_mat,
+  N_edges = ncol(brooklyn_nbs_adj),
+  neighbors = brooklyn_nbs_adj,
+  tau = 0.658
+)
+```
+
+## Fitting the BYM2 Model on the Brooklyn data
+
+#### Model is compiled (as needed) on instantiation 
+
+```{r}
+bym2_mod = cmdstan_model(stan_file=bym2_model_file)
+```
+
+#### Run the NUTS-HMC sampler, summarize results
+
+```{r}
+bym2_fit = bym2_mod$sample(data=bym2_data, parallel_chains=cores)
+bym2_fit 
+```
+
+## Model Comparison: BYM2 vs ICAR vs. ordinary random effects
+
+
+#### ICAR model
+
+```{r}
+pois_icar_mod = cmdstan_model(stan_file=file.path(
+  'stan', 'poisson_icar.stan')) 
+pois_icar_fit = pois_icar_mod$sample(data=bym2_data, parallel_chains=cores)
+pois_icar_fit 
+```
+
+#### Ordinary random effects model
+
+```{r}
+pois_re_mod = cmdstan_model(stan_file=file.path(
+  'stan', 'poisson_re.stan')) 
+pois_re_fit = pois_re_mod$sample(data=bym2_data, parallel_chains=cores)
+pois_re_fit 
+```
+
+Which model provides a better fit (on the Brooklyn subset of the data)?
+
+### Visual comparison
+
+#### BYM2 model
+
+```{r}
+y_rep <- as_draws_matrix(bym2_fit$draws("y_rep"))
+ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
+                 ggtitle("Posterior Predictive Check: BYM2 model")
+```
+
+
+#### ICAR model
+
+```{r}
+y_rep <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
+ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
+                 ggtitle("Posterior Predictive Check: Poisson ICAR model")
+```
+
+#### RE model
+
+```{r}
+y_rep <- as_draws_matrix(pois_re_fit$draws("y_rep"))
+ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
+                 ggtitle("Posterior Predictive Check: Poisson RE model")
+```
+
+### Leave-one-out cross-validation (LOO)
+
+```{r}
+loo_bym2 <- loo(bym2_fit$draws("log_lik"), save_psis = TRUE)
+loo_icar_pois <- loo(pois_icar_fit$draws("log_lik"), save_psis = TRUE)
+loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)
+
+loo_compare(loo_bym2, loo_icar_pois, loo_re_pois)
+```

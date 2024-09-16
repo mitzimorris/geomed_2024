@@ -49,6 +49,8 @@ names(nyc_geodata)
 table(nyc_geodata$BoroName)
 ```
 
+
+
 #### Assemble the input data
 
 The data block of the model declares variables:
@@ -151,8 +153,6 @@ generated quantities {
 }
 ```
 
-Compile and fit the model, print the summary.
-
 ```{r}
 pois_xc_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_ctr_preds.stan')) 
@@ -163,10 +163,9 @@ pois_xc_fit
 How do the samples differ?
 
 ```{r}  
-print("data matrix not transformed")   
+print("data matrix raw")   
 pois_fit
 ```
-
 
 ## Predictor Data Scales
 
@@ -200,7 +199,7 @@ print(summary(design_mat_2))
 
 Run the base model on this data 
 
-```{r, eval=FALSE}
+```{r}
 pois_fit_2 = pois_mod$sample(data=pois_data_2, parallel_chains=cores)
 pois_fit_2
 ```
@@ -211,8 +210,9 @@ it either overflows or underflow because the predictors are on wildly different 
 (Transforming the data fails faster because it both both `traffic` and `med_hh_inc`
 include large negative values - this underflows consistently.)
 
-```{r, eval=FALSE}
-pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
+```r
+# uncomment next line, sampler will fail
+# pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
 ```
 
 #### Takeaway
@@ -254,19 +254,11 @@ The posterior predictive density overlay plot compares the distribution of the o
 
 In R, this is available from the [bayesplot](https://mc-stan.org/bayesplot) package as function [`ppc_dens_overlay`](https://mc-stan.org/bayesplot/articles/graphical-ppcs.html#ppc_dens_overlay).
 
-
 ```{r}
 y_rep <- as_draws_matrix(pois_xc_fit$draws("y_rep"))
 ppc_dens_overlay(nyc_geodata$count, y_rep) +
                  ggtitle("Posterior Predictive Check: Poisson model")
 ```
-
-To create the equivalent plot in Python (or directly using ggplot):
-
-1. select a random set of draws from the output.
-2. create a ggplot plot
-3. add  to the plot the density each simulated dataset  (thin line, light color, relatively transparent)
-4. add to the plot the density of the observed data (heavy line, dark color)
 
 ## Refinement:  Add random effects
 
@@ -306,7 +298,6 @@ generated quantities {
 }
 
 ```
-Compile the model, fit the data, print the fit.
 
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
@@ -328,8 +319,6 @@ y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
 ppc_dens_overlay(nyc_geodata$count, y_rep_re) +
                  ggtitle("Posterior Predictive Check: Poisson + RE Model") 
 ```
-
-
 ```{r}
 ppc_dens_overlay(nyc_geodata$count, y_rep) +
                  ggtitle("Posterior Predictive Check: Poisson Model") 
@@ -352,7 +341,6 @@ leave-one-out (LOO) cross-valiation, which allows us to compare predictive error
 In R,  we can do model comparison using the `loo` package.
 
 **R**
-
 ```{r}
 loo_xc_pois <- loo(pois_xc_fit$draws("log_lik"), save_psis = TRUE)
 loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)

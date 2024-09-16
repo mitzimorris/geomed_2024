@@ -163,7 +163,7 @@ with open(poisson_model_file, 'r') as file:
 **R**
 ```{r}
 poisson_model_file = file.path('stan', 'poisson.stan')
-cat(readlines(file_path), sep="\n")
+cat(readLines(poisson_model_file), sep="\n")
 ```
 
 
@@ -199,8 +199,9 @@ pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores)
 
 **Python**
 ```{python}
-pois_fit.summary().round(2).loc[
-                   ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
+pois_fit_summary = pois_fit.summary()
+pois_fit_summary.round(2).loc[
+  ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
 **R**
@@ -265,7 +266,8 @@ pois_xc_mod = CmdStanModel(stan_file=os.path.join(
 pois_xc_fit = pois_xc_mod.sample(data=pois_data)  
 ```
 ```{python}
-pois_xc_fit.summary().round(2).loc[
+pois_xc_summary = pois_xc_fit.summary()
+pois_xc_summary.round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
@@ -283,8 +285,8 @@ How do the samples differ?
 
 **Python**
 ```{python}
-print("data matrix raw")   
-pois_fit.summary().round(2).loc[
+print("data matrix original scales")   
+pois_fit_summary.round(2).loc[
   ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
@@ -297,7 +299,7 @@ pois_fit
 
 ## Predictor Data Scales
 
-The data variables are on different scales
+The data variables are on different scales:
 
 | Measures                                              | Median | Min    | Mean     | Max       |
 |-------------------------------------------------------|--------|--------|----------|-----------|
@@ -341,7 +343,7 @@ print(summary(design_mat))
 print(summary(design_mat_2))
 ```
 
-Run the base model on this data 
+Run the base model on this data.
 
 
 **Python**
@@ -349,7 +351,8 @@ Run the base model on this data
 pois_fit_2 = pois_mod.sample(data=pois_data_2)
 ```
 ```{python}
-pois_fit_2.summary().round(2).loc[
+pois_summary_2 = pois_fit_2.summary()
+pois_summary_2.round(2).loc[
   ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
@@ -368,12 +371,14 @@ include large negative values - this underflows consistently.)
 
 **Python**
 ```{python}  
-pois_xc_mod.sample(data=pois_data_2)
+# uncomment next line, sampler will fail
+# pois_xc_mod.sample(data=pois_data_2)
 ```
 
 **R**
 ```{r}
-pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
+# uncomment next line, sampler will fail
+# pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
 ```
 
 #### Takeaway
@@ -502,7 +507,8 @@ generated quantities {
 pois_re_mod = CmdStanModel(stan_file=os.path.join(
   'stan', 'poisson_re.stan'))
 pois_re_fit = pois_re_mod.sample(data=pois_data)
-pois_re_fit.summary().round(2).loc[
+pois_re_summary = pois_re_fit.summary()
+pois_re_summary.round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
 ```
 
@@ -519,7 +525,7 @@ How do the samples differ from the base model?
 
 **Python**
 ```{python}
-pois_xc_fit.summary().round(2).loc[
+pois_xc_summary.round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
@@ -638,4 +644,3 @@ az.plot_ppc(idata_pois_re, data_pairs={"y":"y_rep"})
 ```{python}
 az.compare({"poisson":idata_pois_xc, "poisson_re":idata_pois_re})
 ```
-

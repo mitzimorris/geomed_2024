@@ -196,6 +196,17 @@ pois_re_fit
 
 Which model provides a better fit (on the Brooklyn subset of the data)?
 
+```{r}
+cat("BYM2")
+bym2_fit$print(variables = c('sigma', 'rho'))
+
+cat("Poisson ICAR")
+pois_icar_fit$print(variables = c('sigma'))
+
+cat("Poisson Ordinary Random Effects")
+pois_re_fit$print(variables = c('sigma'))
+```
+
 ### Visual comparison
 
 #### BYM2 model

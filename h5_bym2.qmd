@@ -292,7 +292,9 @@ bym2_mod = cmdstan_model(stan_file=bym2_model_file)
 **Python**
 ```{python}
 bym2_fit = bym2_mod.sample(data=bym2_data)
-bym2_fit.summary().round(2).loc[
+
+bym2_summary = bym2_fit.summary()
+bym2_summary.round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
 ```
 
@@ -314,7 +316,8 @@ bym2_fit
 pois_icar_mod = CmdStanModel(stan_file=os.path.join(
   'stan', 'poisson_icar.stan'))
 pois_icar_fit = pois_icar_mod.sample(data=bym2_data)
-pois_icar_fit.summary().round(2).loc[
+pois_icar_summary = pois_icar_fit.summary()
+pois_icar_summary.round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
 ```
 
@@ -333,7 +336,8 @@ pois_icar_fit
 pois_re_mod = CmdStanModel(stan_file=os.path.join(
   'stan', 'poisson_re.stan'))
 pois_re_fit = pois_re_mod.sample(data=bym2_data)
-pois_re_fit.summary().round(2).loc[
+pois_re_summary = pois_re_fit.summary()
+pois_re_summary.round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
 ```
 
@@ -346,6 +350,30 @@ pois_re_fit
 ```
 
 Which model provides a better fit (on the Brooklyn subset of the data)?
+
+**Python**
+```{python}
+print('BYM2')
+print(bym2_summary.round(2).loc[['sigma', 'rho']])
+
+print('\nPoisson ICAR')
+print(pois_icar_summary.round(2).loc[['sigma']])
+
+print('\nPoisson Ordinary random effects')
+print(pois_re_summary.round(2).loc[['sigma']])
+```
+
+**R**
+```{r}
+cat("BYM2")
+bym2_fit$print(variables = c('sigma', 'rho'))
+
+cat("Poisson ICAR")
+pois_icar_fit$print(variables = c('sigma'))
+
+cat("Poisson Ordinary Random Effects")
+pois_re_fit$print(variables = c('sigma'))
+```
 
 ### Visual comparison
 
@@ -361,7 +389,8 @@ idata_bym2 = az.from_cmdstanpy(
     observed_data={"y": bym2_data['y']}
 )
 idata_bym2
-
+```
+```{python}
 az_bym2 = az.plot_ppc(idata_bym2, data_pairs={"y":"y_rep"})
 az_bym2[0,0].title.text = "BYM2 model posterior predictive check"
 az.plots.backends.show_layout(az_bym2)
@@ -384,13 +413,14 @@ idata_pois_icar = az.from_cmdstanpy(
     posterior_predictive="y_rep",
     dims={"betas": ["covariates"]},
     coords={"covariates": design_vars},
-    observed_data={"y": pois_icar_data['y']}
+    observed_data={"y": bym2_data['y']}
 )
 idata_pois_icar
-
-az_pois_icar = az.plot_ppc(idata_pois_icar, data_pairs={"y":"y_rep"})
-az_pois_icar[0,0].title.text = "Poisson ICAR model posterior predictive check"
-az.plots.backends.show_layout(az_pois_icar)
+```
+```{python}
+az_pois_icar_ppc_plot = az.plot_ppc(idata_pois_icar, data_pairs={"y":"y_rep"})
+az_pois_icar_ppc_plot.set_title("Poisson ICAR model posterior predictive check")
+az_pois_icar_ppc_plot
 ```
 
 **R**
@@ -409,11 +439,11 @@ idata_pois_re = az.from_cmdstanpy(
     posterior_predictive="y_rep",
     dims={"betas": ["covariates"]},
     coords={"covariates": design_vars},
-    observed_data={"y": pois_icar_data['y']}
+    observed_data={"y": bym2_data['y']}
 )
-az_pois_re = az.plot_ppc(idata_pois_re, data_pairs={"y":"y_rep"})
-az_pois_re[0,0].title.text = "Poisson RE model posterior predictive check"
-az.plots.backends.show_layout(az_pois_re)
+az_pois_re_ppc_plot = az.plot_ppc(idata_pois_re, data_pairs={"y":"y_rep"})
+az_pois_re_ppc_plot.set_title("Poisson RE model posterior predictive check")
+az_pois_re_ppc_plot
 ```
 
 **R**

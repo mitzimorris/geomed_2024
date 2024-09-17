@@ -115,7 +115,7 @@ summary(nyc_nbs)
 
 * For the NYC analysis paper, we hand edited the map of NYC (in R) to create a fully connected network graph.
 
-* For today's workshop, we will restrict out attention to Brooklyn, the largest borough in NYC, which is a single network component.
+* For this notebook we restrict out attention to Brooklyn, the largest borough in NYC, which is a single network component.
 
 
 **Python**
@@ -279,7 +279,7 @@ pois_icar_data <- list(
   E = as.integer(brooklyn_geodata$kid_pop),
   K = 4,
   xs = design_mat,
-  N_edges = ncol(brooklyn_nbs_adj)
+  N_edges = ncol(brooklyn_nbs_adj),
   neighbors = brooklyn_nbs_adj
 )
 ```
@@ -317,6 +317,7 @@ pois_icar_fit
 
 ## Model Comparison: ICAR vs. ordinary random effects
 
+**Python**
 ```{python}
 pois_re_mod = CmdStanModel(stan_file=os.path.join(
   'stan', 'poisson_re.stan'))
@@ -383,16 +384,21 @@ ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
 
 ### Leave-one-out cross-validation (LOO)
 
-**Python**
-```{python}
-az.compare({"poisson_icar":idata_pois_icar, "poisson_re":idata_pois_re})
-```
+The Poisson-ICAR model falls into the category of "non-factorized models",
+for which simple leave-one-out cross-validation fails to hold,
+due to the fact that observations depend on other observations from 
+different spatial units in addition to the dependence on the model parameters
+Doing cross-validation would require recoding the model, and then re-fitting is $N$ times, once per omitted observation.
+
+See paper: [Efficient leave-one-out cross-validation for Bayesian non-factorized normal and Student-t models](https://arxiv.org/abs/1810.10559),
+which provides a thorough discussion of this problem and ways to evaluate non-factorized models,
+and the LOO package vignette:
+[Leave-one-out cross-validation for non-factorized models](https://mc-stan.org/loo/articles/loo2-non-factorized.html).
+
+In these notebooks we will rely on visualizations and summary statistics.
 
 
-**R**
-```{r}
-loo_icar_pois <- loo(pois_icar_fit$draws("log_lik"), save_psis = TRUE)
-loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)
 
-loo_compare(loo_icar_pois, loo_re_pois)
-```
+
+
+

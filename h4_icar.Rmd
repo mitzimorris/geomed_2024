@@ -55,7 +55,7 @@ summary(nyc_nbs)
 
 * For the NYC analysis paper, we hand edited the map of NYC (in R) to create a fully connected network graph.
 
-* For today's workshop, we will restrict out attention to Brooklyn, the largest borough in NYC, which is a single network component.
+* For this notebook, we restrict out attention to Brooklyn, the largest borough in NYC, which is a single network component.
 
 ```{r}
 brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
@@ -88,10 +88,12 @@ The Stan ICAR model uses the latter.
 $$ p(\phi) \propto \exp \left\{ {- \frac{1}{2}} \sum_{i \sim j}{({\phi}_i - {\phi}_j)}^2 \right\} $$
 
 Use Stan's vectorized operations to compute log probability density:
-
-```stan
+\fontsize{9pt}{9.4}\selectfont
+```
    target += -0.5 * dot_self(phi[node1] - phi[node2]);
 ```
+\normalsize
+\vspace{0.2in}
 
 Encode neighbor information as a graph.
 
@@ -101,14 +103,14 @@ Encode neighbor information as a graph.
   + row 1: index of first node in edge pair, $n_i$
   + row 2: index of second node in edge pair, $n_j$
 
-
+\fontsize{9pt}{9.4}\selectfont
 ```
   int<lower = 0> N;  // number of areal regions
   // spatial structure
   int<lower = 0> N_edges;  // number of neighbor pairs
   array[2, N_edges] int<lower = 1, upper = N> neighbors;  // node[1, j] adjacent to node[2, j]
 ```
-
+\normalsize
 
 ## ICAR Model:  `poisson_icar.stan`
 
@@ -118,6 +120,7 @@ This file is in directory `stan/poisson_icar.stan`.
 poisson_icar_model_file = file.path('stan', 'poisson_icar.stan')
 cat(readLines(poisson_icar_model_file), sep="\n")
 ```
+
 
 ## Data Prep
 
@@ -182,9 +185,6 @@ Which model provides a better fit (on the Brooklyn subset of the data)?
 
 ### Visual comparison
 
-In R, we use the `bayesplot` package.
-In Python, we use `ArviZ`.
-
 #### ICAR model
 
 ```{r}
@@ -203,9 +203,21 @@ ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
 
 ### Leave-one-out cross-validation (LOO)
 
-```{r}
-loo_icar_pois <- loo(pois_icar_fit$draws("log_lik"), save_psis = TRUE)
-loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)
+The Poisson-ICAR model falls into the category of "non-factorized models",
+for which simple leave-one-out cross-validation fails to hold,
+due to the fact that observations depend on other observations from 
+different spatial units in addition to the dependence on the model parameters
+Doing cross-validation would require recoding the model, and then re-fitting is $N$ times, once per omitted observation.
 
-loo_compare(loo_icar_pois, loo_re_pois)
-```
+See paper: [Efficient leave-one-out cross-validation for Bayesian non-factorized normal and Student-t models](https://arxiv.org/abs/1810.10559),
+which provides a thorough discussion of this problem and ways to evaluate non-factorized models,
+and the LOO package vignette:
+[Leave-one-out cross-validation for non-factorized models](https://mc-stan.org/loo/articles/loo2-non-factorized.html).
+
+In these notebooks we will rely on visualizations and summary statistics.
+
+
+
+
+
+

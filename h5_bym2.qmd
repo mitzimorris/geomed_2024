@@ -215,7 +215,7 @@ get_scaling_factor = function(adj_list) {
     # Create ICAR precision matrix  (diag - adjacency): this is singular
     Q =  Diagonal(N, rowSums(adj_matrix)) - adj_matrix
     # Add a small jitter to the diagonal for numerical stability (optional but recommended)
-    Q_pert = Q + Diagonal(N * max(diag(Q)) * sqrt(.Machine$double.eps)
+    Q_pert = Q + Diagonal(N * max(diag(Q)) * sqrt(.Machine$double.eps))
 
     # Compute the diagonal elements of the covariance matrix
     Q_inv = q_inv_dense(Q_pert, adj_matrix)

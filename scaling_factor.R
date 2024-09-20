@@ -1,4 +1,4 @@
-# computate of the inverse of a sparse precision matrix
+# computes the inverse of a sparse precision matrix
 # sub-optimal implementation - better to use INLA
 q_inv_dense <- function(Q, A = NULL) {
   Sigma <- Matrix::solve(Q)   ## need sparse matrix solver
@@ -12,15 +12,16 @@ q_inv_dense <- function(Q, A = NULL) {
   }
 }
 
-get_scaling_factor = function(adj_list) {
-    N = ncol(adj_list)
+get_scaling_factor = function(nbs) {
+    N = length(nbs)
+    adj_matrix = nb2mat(nbs,style="B")
     # Build the adjacency matrix using edgelist
-    adj_matrix = sparseMatrix(i=adj_list[1, ], j=adj_list[2, ], x=1, symmetric=TRUE)
+    Q = Diagonal(counts[1], rowSums(adj_matrix)) - adj_matrix
 
     # Create ICAR precision matrix  (diag - adjacency): this is singular
     Q =  Diagonal(N, rowSums(adj_matrix)) - adj_matrix
     # Add a small jitter to the diagonal for numerical stability (optional but recommended)
-    Q_pert = Q + Diagonal(N * max(diag(Q)) * sqrt(.Machine$double.eps)
+    Q_pert = Q + Diagonal(N) * max(diag(Q)) * sqrt(.Machine$double.eps)
 
     # Compute the diagonal elements of the covariance matrix
     Q_inv = q_inv_dense(Q_pert, adj_matrix)

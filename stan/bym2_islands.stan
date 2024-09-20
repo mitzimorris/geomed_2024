@@ -44,7 +44,6 @@ transformed data {
     means_xs[k] = mean(xs[, k]);
     xs_centered[, k] = xs[, k] - means_xs[k];
   }
-  print("hi");
 }
 parameters {
   real beta0;  // intercept

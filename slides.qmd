@@ -832,10 +832,10 @@ model {
 
 \tightlist
 * Scale each connected component of size larger than one as in BYM2 model
+* Identify each connected component of size larger than one using sum-to-zero constraint
 * Scale islands with standard Normal
 
 # Computing ICAR scaling factor for each component
-
 
 * Compute cardinality of each component
 
@@ -914,17 +914,6 @@ model {
 }
 ```
 \normalsize
-
-
-# Notebook: BYM2_Islands Model
-
-* Implement the BYM2 model for all of NYC.
-
-
-* Handouts
-  + `h6_bym2_islands.html`
-  + R version `h6_bym2_islands.Rmd`  (or `h6_bym2_islands.qmd`)
-  + Python version: `h6_bym2_islands.ipynb`
 
 
 # BYM2 Model for Spatio-Temporal Smoothing

@@ -17,7 +17,7 @@ execute:
 
 ## Notebook Setup
 
-Import all libraries, load the NYC study data.
+### Libraries and helper functions.
 
 **Python**
 ```{python}
@@ -60,8 +60,39 @@ map_theme =  p9.theme(figure_size=(7,6),
                  axis_ticks_y=p9.element_blank())
 ```
 ```{python}
-nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
-nyc_geodata.columns
+# helper functions
+import scipy.sparse as sp
+import scipy.sparse.linalg as splinalg
+
+def q_inv_dense(Q, A=None):
+    # Compute the inverse of the sparse precision matrix Q
+    Sigma = splinalg.inv(Q).todense()
+    if A is None:
+        return Sigma
+    else:
+        A = np.ones((1, Sigma.shape[0]))
+        W = Sigma @ A.T
+        Sigma_const = Sigma - W @ np.linalg.inv(A @ W) @ W.T
+        return Sigma_const
+
+def get_scaling_factor(nbs):
+    # Compute the geometric mean of the spatial covariance matrix
+    N = nbs.n
+
+    # Create the adjacency matrix from the weights object
+    adj_matrix = nbs.full()[0]
+    adj_matrix = sp.csr_matrix(adj_matrix)  # Convert to sparse matrix
+
+    # Create ICAR precision matrix (diagonal minus adjacency)
+    Q = sp.diags(np.ravel(adj_matrix.sum(axis=1))) - adj_matrix
+    # Add jitter to the diagonal for numerical stability
+    Q_pert = Q + sp.eye(N) * np.max(Q.diagonal()) * np.sqrt(np.finfo(float).eps)
+
+    # Compute the diagonal elements of the covariance matrix
+    Q_inv = q_inv_dense(Q_pert, adj_matrix)
+
+    # Compute the geometric mean of the variances (diagonal elements of Q_inv)
+    return np.exp(np.mean(np.log(np.diag(Q_inv))))
 ```
 
 **R**
@@ -76,16 +107,56 @@ library(bayesplot)
 library(loo)
 library(parallel)
 library(igraph)
+library(Matrix)
 cores = floor(parallel::detectCores() / 2)
+```
 
+```{r}
+# helper functions
 
-# helper function:  create edgelist for ICAR component
+#  create edgelist for ICAR component
 nbs_to_adjlist <- function(nb) {
     adj_matrix = nb2mat(nb,style="B")
     t(as_edgelist(graph_from_adjacency_matrix(adj_matrix, mode="undirected")))
 }
+
+# Compute the inverse of a sparse precision matrix
+q_inv_dense <- function(Q, A = NULL) {
+  Sigma <- Matrix::solve(Q)
+  if (is.null(A))
+    return(Sigma)
+  else {
+    A <- matrix(1,1, nrow(Sigma))
+    W <- Sigma %*% t(A)
+    Sigma_const <- Sigma - W %*% solve(A %*% W) %*% t(W)
+    return(Sigma_const)
+  }
+}
+
+# Compute the geometric mean of the spatial covariance matrix
+get_scaling_factor = function(nbs) {
+    N = length(nbs)
+    # Create ICAR precision matrix  (diag - adjacency): this is singular
+    adj_matrix = nb2mat(nbs,style="B")
+    Q =  Diagonal(N, rowSums(adj_matrix)) - adj_matrix
+    # Add a small jitter to the diagonal for numerical stability (optional but recommended)
+    Q_pert = Q + Diagonal(N) * max(diag(Q)) * sqrt(.Machine$double.eps)
+    # Compute the diagonal elements of the covariance matrix
+    Q_inv = q_inv_dense(Q_pert, adj_matrix)
+    # Compute the geometric mean of the variances, which are on the diagonal of Q_inv
+    return(exp(mean(log(diag(Q_inv)))))
+}
 ```
 
+### Load Data
+
+**Python**
+```{python}
+nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
+nyc_geodata.columns
+```
+
+**R**
 ```{r}
 nyc_geodata = st_read("data/nyc_study.geojson")
 names(nyc_geodata)
@@ -189,40 +260,16 @@ brooklyn_nbs_adj[1:2, 1:10]
 
 ### Compute scaling factor `tau`
 
-Computed in R:  value 0.658
+**Python**
+```{python}
+tau = get_scaling_factor(brooklyn_nbs)
+tau
+```
 
-R Script:
-```r
-# computes the inverse of a sparse precision matrix
-# sub-optimal implementation - better to use INLA
-q_inv_dense <- function(Q, A = NULL) {
-  Sigma <- Matrix::solve(Q)   ## need sparse matrix solver
-  if (is.null(A))
-    return(Sigma)
-  else {
-    A <- matrix(1,1, nrow(Sigma))
-    W <- Sigma %*% t(A)
-    Sigma_const <- Sigma - W %*% solve(A %*% W) %*% t(W)
-    return(Sigma_const)
-  }
-}
-
-get_scaling_factor = function(adj_list) {
-    N = ncol(adj_list)
-    # Build the adjacency matrix using edgelist
-    adj_matrix = sparseMatrix(i=adj_list[1, ], j=adj_list[2, ], x=1, symmetric=TRUE)
-
-    # Create ICAR precision matrix  (diag - adjacency): this is singular
-    Q =  Diagonal(N, rowSums(adj_matrix)) - adj_matrix
-    # Add a small jitter to the diagonal for numerical stability (optional but recommended)
-    Q_pert = Q + Diagonal(N * max(diag(Q)) * sqrt(.Machine$double.eps))
-
-    # Compute the diagonal elements of the covariance matrix
-    Q_inv = q_inv_dense(Q_pert, adj_matrix)
-
-    # Compute the geometric mean of the variances, which are on the diagonal of Q.inv
-    return(exp(mean(log(diag(Q_inv)))))
-}
+**R**
+```{r}
+tau = get_scaling_factor(brooklyn_nbs)
+tau
 ```
 
 #### Assemble the input data 
@@ -246,7 +293,7 @@ bym2_data = {"N":brooklyn_geodata.shape[0],
              "xs":design_mat,
              "N_edges": edge_pairs.shape[1],
              "neighbors": edge_pairs,
-	     "tau":0.7
+	     "tau":0.658
 }
 ```
 
@@ -268,7 +315,7 @@ bym2_data <- list(
   xs = design_mat,
   N_edges = ncol(brooklyn_nbs_adj),
   neighbors = brooklyn_nbs_adj,
-  tau = 0.658
+  tau = tau
 )
 ```
 
@@ -295,16 +342,64 @@ bym2_fit = bym2_mod.sample(data=bym2_data)
 
 bym2_summary = bym2_fit.summary()
 bym2_summary.round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
 ```
 
 
 **R**
 ```{r}
-bym2_fit = bym2_mod$sample(data=bym2_data, parallel_chains=cores)
-bym2_fit 
+bym2_fit = bym2_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
+bym2_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho')) 
 ```
 
+## Using variational methods to initialize parameters for MCMC
+
+By default, Stan's NUTS-HMC sampler algorithm randomly initializes all model parameters in the range uniform[-2, 2].
+When the true parameter value is outside of this range,
+starting from the estimates obtained from Stan's variational methods Pathfinder and ADVI
+will improve adaptation, resulting in faster warmup and a better sample.
+
+See [Using Variational Estimates to Initialize the NUTS-HMC Sampler](https://mc-stan.org/cmdstanpy/users-guide/examples/VI%20as%20Sampler%20Inits.html) (Python) and [this example on Stan Discourse](https://discourse.mc-stan.org/t/using-pathfinder-or-other-method-to-set-initial-values-for-sampling/34960/8) (R).
+
+For the BYM2 model, the LOO diagnostic, based on Pareto-smoothed importance sampling (PSIS)
+is problematic, as the ICAR component in the BYM2 model doesn't factorize, therefore,
+when running Pathfinder, we set parameter `psis_resample` to False.
+
+
+**Python**
+```{python}
+bym2_pathfinder = bym2_mod.pathfinder(data=bym2_data, psis_resample=FALSE)
+bym2_inits = bym2_pathfinder.create_inits()
+
+bym2_inits_fit = bym2_mod.sample(data=bym2_data, inits=bym2_inits)
+bym2_inits_summary = bym2_inits_fit.summary()
+bym2_inits_summary.round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
+```
+
+```{python}
+bym2_summary.round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
+
+# no summary method for pathfinder draws, summarize var-by-var
+print('Pathfinder estimates')
+print('beta_intercept', pd.Series(bym2_pathfinder.beta_intercept).describe())
+print('sigma', pd.Series(bym2_pathfinder.sigma).describe())
+print('rho', pd.Series(bym2_pathfinder.sigma).describe())
+```
+
+
+**R**
+```{r}
+bym2_pathfinder = bym2_mod$pathfinder(data=bym2_data, psis_resample=FALSE)
+bym2_init_fit = bym2_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0, init=bym2_pathfinder)
+bym2_init_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho'))
+```
+```{r}
+bym2_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho'))
+cat('Pathfinder estimates')
+bym2_pathfinder$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho'))
+```
 
 ## Model Comparison: BYM2 vs ICAR vs. ordinary random effects
 
@@ -325,8 +420,8 @@ pois_icar_summary.round(2).loc[
 ```{r}
 pois_icar_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_icar.stan')) 
-pois_icar_fit = pois_icar_mod$sample(data=bym2_data, parallel_chains=cores)
-pois_icar_fit 
+pois_icar_fit = pois_icar_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
+pois_icar_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma'))
 ```
 
 #### Ordinary random effects model
@@ -345,8 +440,8 @@ pois_re_summary.round(2).loc[
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_re.stan')) 
-pois_re_fit = pois_re_mod$sample(data=bym2_data, parallel_chains=cores)
-pois_re_fit 
+pois_re_fit = pois_re_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
+pois_re_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma'))
 ```
 
 Which model provides a better fit (on the Brooklyn subset of the data)?
@@ -392,14 +487,14 @@ idata_bym2
 ```
 ```{python}
 az_bym2 = az.plot_ppc(idata_bym2, data_pairs={"y":"y_rep"})
-az_bym2[0,0].title.text = "BYM2 model posterior predictive check"
-az.plots.backends.show_layout(az_bym2)
+az_bym2.set_title("BYM2 model posterior predictive check")
+az_bym2
 ```
 
 **R**
 ```{r}
-y_rep <- as_draws_matrix(bym2_fit$draws("y_rep"))
-ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
+y_rep_bym2 <- as_draws_matrix(bym2_fit$draws("y_rep"))
+ppc_dens_overlay(brooklyn_geodata$count, y_rep_bym2) +
                  ggtitle("Posterior Predictive Check: BYM2 model")
 ```
 
@@ -425,8 +520,8 @@ az_pois_icar_ppc_plot
 
 **R**
 ```{r}
-y_rep <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
-ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
+y_rep_icar <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
+ppc_dens_overlay(brooklyn_geodata$count, y_rep_icar) +
                  ggtitle("Posterior Predictive Check: Poisson ICAR model")
 ```
 
@@ -448,23 +543,7 @@ az_pois_re_ppc_plot
 
 **R**
 ```{r}
-y_rep <- as_draws_matrix(pois_re_fit$draws("y_rep"))
-ppc_dens_overlay(brooklyn_geodata$count, y_rep) +
+y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
+ppc_dens_overlay(brooklyn_geodata$count, y_rep_re) +
                  ggtitle("Posterior Predictive Check: Poisson RE model")
-```
-
-### Leave-one-out cross-validation (LOO)
-
-**Python**
-```{python}
-az.compare({"bym2":idata_bym2, "poisson_icar":idata_pois_icar, "poisson_re":idata_pois_re})
-```
-
-**R**
-```{r}
-loo_bym2 <- loo(bym2_fit$draws("log_lik"), save_psis = TRUE)
-loo_icar_pois <- loo(pois_icar_fit$draws("log_lik"), save_psis = TRUE)
-loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)
-
-loo_compare(loo_bym2, loo_icar_pois, loo_re_pois)
 ```

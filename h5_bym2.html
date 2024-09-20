@@ -3570,7 +3570,11 @@ color: var(--quarto-text-muted);
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#notebook-setup" id="toc-notebook-setup" class="nav-link active" data-scroll-target="#notebook-setup">Notebook Setup</a></li>
+  <li><a href="#notebook-setup" id="toc-notebook-setup" class="nav-link active" data-scroll-target="#notebook-setup">Notebook Setup</a>
+  <ul class="collapse">
+  <li><a href="#libraries-and-helper-functions." id="toc-libraries-and-helper-functions." class="nav-link" data-scroll-target="#libraries-and-helper-functions.">Libraries and helper functions.</a></li>
+  <li><a href="#load-data" id="toc-load-data" class="nav-link" data-scroll-target="#load-data">Load Data</a></li>
+  </ul></li>
   <li><a href="#disconnected-components-and-islands" id="toc-disconnected-components-and-islands" class="nav-link" data-scroll-target="#disconnected-components-and-islands">Disconnected Components (and islands)</a></li>
   <li><a href="#from-icar-to-bym2" id="toc-from-icar-to-bym2" class="nav-link" data-scroll-target="#from-icar-to-bym2">From ICAR to BYM2</a></li>
   <li><a href="#bym2-model-bym2.stan" id="toc-bym2-model-bym2.stan" class="nav-link" data-scroll-target="#bym2-model-bym2.stan">BYM2 Model: <code>bym2.stan</code></a></li>
@@ -3580,10 +3584,10 @@ color: var(--quarto-text-muted);
   <li><a href="#compute-scaling-factor-tau" id="toc-compute-scaling-factor-tau" class="nav-link" data-scroll-target="#compute-scaling-factor-tau">Compute scaling factor <code>tau</code></a></li>
   </ul></li>
   <li><a href="#fitting-the-bym2-model-on-the-brooklyn-data" id="toc-fitting-the-bym2-model-on-the-brooklyn-data" class="nav-link" data-scroll-target="#fitting-the-bym2-model-on-the-brooklyn-data">Fitting the BYM2 Model on the Brooklyn data</a></li>
+  <li><a href="#using-variational-methods-to-initialize-parameters-for-mcmc" id="toc-using-variational-methods-to-initialize-parameters-for-mcmc" class="nav-link" data-scroll-target="#using-variational-methods-to-initialize-parameters-for-mcmc">Using variational methods to initialize parameters for MCMC</a></li>
   <li><a href="#model-comparison-bym2-vs-icar-vs.-ordinary-random-effects" id="toc-model-comparison-bym2-vs-icar-vs.-ordinary-random-effects" class="nav-link" data-scroll-target="#model-comparison-bym2-vs-icar-vs.-ordinary-random-effects">Model Comparison: BYM2 vs ICAR vs. ordinary random effects</a>
   <ul class="collapse">
   <li><a href="#visual-comparison" id="toc-visual-comparison" class="nav-link" data-scroll-target="#visual-comparison">Visual comparison</a></li>
-  <li><a href="#leave-one-out-cross-validation-loo" id="toc-leave-one-out-cross-validation-loo" class="nav-link" data-scroll-target="#leave-one-out-cross-validation-loo">Leave-one-out cross-validation (LOO)</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -3613,7 +3617,8 @@ color: var(--quarto-text-muted);
 
 <section id="notebook-setup" class="level2">
 <h2 class="anchored" data-anchor-id="notebook-setup">Notebook Setup</h2>
-<p>Import all libraries, load the NYC study data.</p>
+<section id="libraries-and-helper-functions." class="level3">
+<h3 class="anchored" data-anchor-id="libraries-and-helper-functions.">Libraries and helper functions.</h3>
 <p><strong>Python</strong></p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># import all libraries used in this notebook</span></span>
@@ -3655,8 +3660,39 @@ color: var(--quarto-text-muted);
 <span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>                 axis_ticks_y<span class="op">=</span>p9.element_blank())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="op">=</span> gpd.read_file(os.path.join(<span class="st">&#39;data&#39;</span>, <span class="st">&#39;nyc_study.geojson&#39;</span>))</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>nyc_geodata.columns</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># helper functions</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> scipy.sparse <span class="im">as</span> sp</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> scipy.sparse.linalg <span class="im">as</span> splinalg</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> q_inv_dense(Q, A<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute the inverse of the sparse precision matrix Q</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    Sigma <span class="op">=</span> splinalg.inv(Q).todense()</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> A <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Sigma</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        A <span class="op">=</span> np.ones((<span class="dv">1</span>, Sigma.shape[<span class="dv">0</span>]))</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        W <span class="op">=</span> Sigma <span class="op">@</span> A.T</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        Sigma_const <span class="op">=</span> Sigma <span class="op">-</span> W <span class="op">@</span> np.linalg.inv(A <span class="op">@</span> W) <span class="op">@</span> W.T</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Sigma_const</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_scaling_factor(nbs):</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute the geometric mean of the spatial covariance matrix</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    N <span class="op">=</span> nbs.n</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create the adjacency matrix from the weights object</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    adj_matrix <span class="op">=</span> nbs.full()[<span class="dv">0</span>]</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    adj_matrix <span class="op">=</span> sp.csr_matrix(adj_matrix)  <span class="co"># Convert to sparse matrix</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create ICAR precision matrix (diagonal minus adjacency)</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    Q <span class="op">=</span> sp.diags(np.ravel(adj_matrix.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>))) <span class="op">-</span> adj_matrix</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Add jitter to the diagonal for numerical stability</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    Q_pert <span class="op">=</span> Q <span class="op">+</span> sp.eye(N) <span class="op">*</span> np.<span class="bu">max</span>(Q.diagonal()) <span class="op">*</span> np.sqrt(np.finfo(<span class="bu">float</span>).eps)</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute the diagonal elements of the covariance matrix</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    Q_inv <span class="op">=</span> q_inv_dense(Q_pert, adj_matrix)</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute the geometric mean of the variances (diagonal elements of Q_inv)</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.exp(np.mean(np.log(np.diag(Q_inv))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
@@ -3670,19 +3706,59 @@ color: var(--quarto-text-muted);
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(loo)</span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(parallel)</span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(igraph)</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>cores <span class="ot">=</span> <span class="fu">floor</span>(parallel<span class="sc">::</span><span class="fu">detectCores</span>() <span class="sc">/</span> <span class="dv">2</span>)</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># helper function:  create edgelist for ICAR component</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>nbs_to_adjlist <span class="ot">&lt;-</span> <span class="cf">function</span>(nb) {</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    adj_matrix <span class="ot">=</span> <span class="fu">nb2mat</span>(nb,<span class="at">style=</span><span class="st">&quot;B&quot;</span>)</span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">t</span>(<span class="fu">as_edgelist</span>(<span class="fu">graph_from_adjacency_matrix</span>(adj_matrix, <span class="at">mode=</span><span class="st">&quot;undirected&quot;</span>)))</span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Matrix)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>cores <span class="ot">=</span> <span class="fu">floor</span>(parallel<span class="sc">::</span><span class="fu">detectCores</span>() <span class="sc">/</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="ot">=</span> <span class="fu">st_read</span>(<span class="st">&quot;data/nyc_study.geojson&quot;</span>)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(nyc_geodata)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># helper functions</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">#  create edgelist for ICAR component</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>nbs_to_adjlist <span class="ot">&lt;-</span> <span class="cf">function</span>(nb) {</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    adj_matrix <span class="ot">=</span> <span class="fu">nb2mat</span>(nb,<span class="at">style=</span><span class="st">&quot;B&quot;</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">t</span>(<span class="fu">as_edgelist</span>(<span class="fu">graph_from_adjacency_matrix</span>(adj_matrix, <span class="at">mode=</span><span class="st">&quot;undirected&quot;</span>)))</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the inverse of a sparse precision matrix</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>q_inv_dense <span class="ot">&lt;-</span> <span class="cf">function</span>(Q, <span class="at">A =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  Sigma <span class="ot">&lt;-</span> Matrix<span class="sc">::</span><span class="fu">solve</span>(Q)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.null</span>(A))</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(Sigma)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">else</span> {</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    A <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">1</span>,<span class="dv">1</span>, <span class="fu">nrow</span>(Sigma))</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    W <span class="ot">&lt;-</span> Sigma <span class="sc">%*%</span> <span class="fu">t</span>(A)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    Sigma_const <span class="ot">&lt;-</span> Sigma <span class="sc">-</span> W <span class="sc">%*%</span> <span class="fu">solve</span>(A <span class="sc">%*%</span> W) <span class="sc">%*%</span> <span class="fu">t</span>(W)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(Sigma_const)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the geometric mean of the spatial covariance matrix</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>get_scaling_factor <span class="ot">=</span> <span class="cf">function</span>(nbs) {</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    N <span class="ot">=</span> <span class="fu">length</span>(nbs)</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create ICAR precision matrix  (diag - adjacency): this is singular</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    adj_matrix <span class="ot">=</span> <span class="fu">nb2mat</span>(nbs,<span class="at">style=</span><span class="st">&quot;B&quot;</span>)</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    Q <span class="ot">=</span>  <span class="fu">Diagonal</span>(N, <span class="fu">rowSums</span>(adj_matrix)) <span class="sc">-</span> adj_matrix</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Add a small jitter to the diagonal for numerical stability (optional but recommended)</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    Q_pert <span class="ot">=</span> Q <span class="sc">+</span> <span class="fu">Diagonal</span>(N) <span class="sc">*</span> <span class="fu">max</span>(<span class="fu">diag</span>(Q)) <span class="sc">*</span> <span class="fu">sqrt</span>(.Machine<span class="sc">$</span>double.eps)</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute the diagonal elements of the covariance matrix</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    Q_inv <span class="ot">=</span> <span class="fu">q_inv_dense</span>(Q_pert, adj_matrix)</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute the geometric mean of the variances, which are on the diagonal of Q_inv</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">exp</span>(<span class="fu">mean</span>(<span class="fu">log</span>(<span class="fu">diag</span>(Q_inv)))))</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
+<section id="load-data" class="level3">
+<h3 class="anchored" data-anchor-id="load-data">Load Data</h3>
+<p><strong>Python</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="op">=</span> gpd.read_file(os.path.join(<span class="st">&#39;data&#39;</span>, <span class="st">&#39;nyc_study.geojson&#39;</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>nyc_geodata.columns</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><strong>R</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="ot">=</span> <span class="fu">st_read</span>(<span class="st">&quot;data/nyc_study.geojson&quot;</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(nyc_geodata)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
 </section>
 <section id="disconnected-components-and-islands" class="level2">
 <h2 class="anchored" data-anchor-id="disconnected-components-and-islands">Disconnected Components (and islands)</h2>
@@ -3694,26 +3770,26 @@ color: var(--quarto-text-muted);
 </ul>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>brooklyn_geodata <span class="op">=</span> nyc_geodata[nyc_geodata[<span class="st">&#39;BoroName&#39;</span>]<span class="op">==</span><span class="st">&#39;Brooklyn&#39;</span>].reset_index(drop<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs <span class="op">=</span> sa.weights.Rook.from_dataframe(brooklyn_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>plot_spatial_weights(brooklyn_nbs, brooklyn_geodata) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>brooklyn_geodata <span class="op">=</span> nyc_geodata[nyc_geodata[<span class="st">&#39;BoroName&#39;</span>]<span class="op">==</span><span class="st">&#39;Brooklyn&#39;</span>].reset_index(drop<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs <span class="op">=</span> sa.weights.Rook.from_dataframe(brooklyn_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>plot_spatial_weights(brooklyn_nbs, brooklyn_geodata) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;number of components: </span><span class="sc">{</span>brooklyn_nbs<span class="sc">.</span>n_components<span class="sc">}</span><span class="ss">&#39;</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;islands? </span><span class="sc">{</span>brooklyn_nbs<span class="sc">.</span>islands<span class="sc">}</span><span class="ss">&#39;</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;max number of neighbors per node: </span><span class="sc">{</span>brooklyn_nbs<span class="sc">.</span>max_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;mean number of neighbors per node: </span><span class="sc">{</span>brooklyn_nbs<span class="sc">.</span>mean_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;number of components: </span><span class="sc">{</span>brooklyn_nbs<span class="sc">.</span>n_components<span class="sc">}</span><span class="ss">&#39;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;islands? </span><span class="sc">{</span>brooklyn_nbs<span class="sc">.</span>islands<span class="sc">}</span><span class="ss">&#39;</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;max number of neighbors per node: </span><span class="sc">{</span>brooklyn_nbs<span class="sc">.</span>max_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;mean number of neighbors per node: </span><span class="sc">{</span>brooklyn_nbs<span class="sc">.</span>mean_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>brooklyn_geodata <span class="ot">=</span> nyc_geodata[nyc_geodata<span class="sc">$</span>BoroName<span class="sc">==</span><span class="st">&#39;Brooklyn&#39;</span>, ]</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs <span class="ot">=</span> <span class="fu">poly2nb</span>(brooklyn_geodata, <span class="at">queen=</span><span class="cn">FALSE</span>)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>brooklyn_coords <span class="ot">=</span> <span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(brooklyn_geodata[<span class="st">&#39;geometry&#39;</span>]))</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">st_geometry</span>(brooklyn_geodata), <span class="at">col=</span><span class="st">&#39;skyblue&#39;</span>)</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(brooklyn_nbs, <span class="at">coords=</span>brooklyn_coords, <span class="at">add=</span><span class="cn">TRUE</span>, <span class="at">pch=</span><span class="dv">20</span>, <span class="at">cex=</span><span class="fl">0.6</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>brooklyn_geodata <span class="ot">=</span> nyc_geodata[nyc_geodata<span class="sc">$</span>BoroName<span class="sc">==</span><span class="st">&#39;Brooklyn&#39;</span>, ]</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs <span class="ot">=</span> <span class="fu">poly2nb</span>(brooklyn_geodata, <span class="at">queen=</span><span class="cn">FALSE</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>brooklyn_coords <span class="ot">=</span> <span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(brooklyn_geodata[<span class="st">&#39;geometry&#39;</span>]))</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">st_geometry</span>(brooklyn_geodata), <span class="at">col=</span><span class="st">&#39;skyblue&#39;</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(brooklyn_nbs, <span class="at">coords=</span>brooklyn_coords, <span class="at">add=</span><span class="cn">TRUE</span>, <span class="at">pch=</span><span class="dv">20</span>, <span class="at">cex=</span><span class="fl">0.6</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(brooklyn_nbs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(brooklyn_nbs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="from-icar-to-bym2" class="level2">
@@ -3729,16 +3805,16 @@ color: var(--quarto-text-muted);
 <p>This file is in directory <code>stan/bym2.stan</code>.</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>bym2_model_file <span class="op">=</span> os.path.join(<span class="st">&#39;stan&#39;</span>, <span class="st">&#39;bym2.stan&#39;</span>)</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(bym2_model_file, <span class="st">&#39;r&#39;</span>) <span class="im">as</span> <span class="bu">file</span>:</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    contents <span class="op">=</span> <span class="bu">file</span>.read()</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(contents)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>bym2_model_file <span class="op">=</span> os.path.join(<span class="st">&#39;stan&#39;</span>, <span class="st">&#39;bym2.stan&#39;</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(bym2_model_file, <span class="st">&#39;r&#39;</span>) <span class="im">as</span> <span class="bu">file</span>:</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    contents <span class="op">=</span> <span class="bu">file</span>.read()</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(contents)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>bym2_model_file <span class="ot">=</span> <span class="fu">file.path</span>(<span class="st">&#39;stan&#39;</span>, <span class="st">&#39;bym2.stan&#39;</span>)</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">readLines</span>(bym2_model_file), <span class="at">sep=</span><span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>bym2_model_file <span class="ot">=</span> <span class="fu">file.path</span>(<span class="st">&#39;stan&#39;</span>, <span class="st">&#39;bym2.stan&#39;</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">readLines</span>(bym2_model_file), <span class="at">sep=</span><span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="data-prep" class="level2">
@@ -3754,99 +3830,77 @@ color: var(--quarto-text-muted);
 </ul>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs_adj <span class="op">=</span>  brooklyn_nbs.to_adjlist(remove_symmetric<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">type</span>(brooklyn_nbs_adj))</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs_adj.head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs_adj <span class="op">=</span>  brooklyn_nbs.to_adjlist(remove_symmetric<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">type</span>(brooklyn_nbs_adj))</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs_adj.head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create np.ndarray from columns in adjlist, increment indices by 1</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>j1 <span class="op">=</span> brooklyn_nbs_adj[<span class="st">&#39;focal&#39;</span>] <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>j2 <span class="op">=</span> brooklyn_nbs_adj[<span class="st">&#39;neighbor&#39;</span>] <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>edge_pairs <span class="op">=</span> np.vstack([j1, j2])</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>edge_pairs</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create np.ndarray from columns in adjlist, increment indices by 1</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>j1 <span class="op">=</span> brooklyn_nbs_adj[<span class="st">&#39;focal&#39;</span>] <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>j2 <span class="op">=</span> brooklyn_nbs_adj[<span class="st">&#39;neighbor&#39;</span>] <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>edge_pairs <span class="op">=</span> np.vstack([j1, j2])</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>edge_pairs</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs_adj <span class="ot">=</span> <span class="fu">nbs_to_adjlist</span>(brooklyn_nbs)</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs_adj[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs_adj <span class="ot">=</span> <span class="fu">nbs_to_adjlist</span>(brooklyn_nbs)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs_adj[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="compute-scaling-factor-tau" class="level3">
 <h3 class="anchored" data-anchor-id="compute-scaling-factor-tau">Compute scaling factor <code>tau</code></h3>
-<p>Computed in R: value 0.658</p>
-<p>R Script:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># computes the inverse of a sparse precision matrix</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># sub-optimal implementation - better to use INLA</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>q_inv_dense <span class="ot">&lt;-</span> <span class="cf">function</span>(Q, <span class="at">A =</span> <span class="cn">NULL</span>) {</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  Sigma <span class="ot">&lt;-</span> Matrix<span class="sc">::</span><span class="fu">solve</span>(Q)   <span class="do">## need sparse matrix solver</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.null</span>(A))</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(Sigma)</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">else</span> {</span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    A <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">1</span>,<span class="dv">1</span>, <span class="fu">nrow</span>(Sigma))</span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    W <span class="ot">&lt;-</span> Sigma <span class="sc">%*%</span> <span class="fu">t</span>(A)</span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    Sigma_const <span class="ot">&lt;-</span> Sigma <span class="sc">-</span> W <span class="sc">%*%</span> <span class="fu">solve</span>(A <span class="sc">%*%</span> W) <span class="sc">%*%</span> <span class="fu">t</span>(W)</span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(Sigma_const)</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>get_scaling_factor <span class="ot">=</span> <span class="cf">function</span>(adj_list) {</span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>    N <span class="ot">=</span> <span class="fu">ncol</span>(adj_list)</span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build the adjacency matrix using edgelist</span></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>    adj_matrix <span class="ot">=</span> <span class="fu">sparseMatrix</span>(<span class="at">i=</span>adj_list[<span class="dv">1</span>, ], <span class="at">j=</span>adj_list[<span class="dv">2</span>, ], <span class="at">x=</span><span class="dv">1</span>, <span class="at">symmetric=</span><span class="cn">TRUE</span>)</span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create ICAR precision matrix  (diag - adjacency): this is singular</span></span>
-<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    Q <span class="ot">=</span>  <span class="fu">Diagonal</span>(N, <span class="fu">rowSums</span>(adj_matrix)) <span class="sc">-</span> adj_matrix</span>
-<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Add a small jitter to the diagonal for numerical stability (optional but recommended)</span></span>
-<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>    Q_pert <span class="ot">=</span> Q <span class="sc">+</span> <span class="fu">Diagonal</span>(N <span class="sc">*</span> <span class="fu">max</span>(<span class="fu">diag</span>(Q)) <span class="sc">*</span> <span class="fu">sqrt</span>(.Machine<span class="sc">$</span>double.eps)</span>
-<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute the diagonal elements of the covariance matrix</span></span>
-<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">Q_inv =</span> <span class="fu">q_inv_dense</span>(Q_pert, adj_matrix)</span>
-<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute the geometric mean of the variances, which are on the diagonal of Q.inv</span></span>
-<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">exp</span>(<span class="fu">mean</span>(<span class="fu">log</span>(<span class="fu">diag</span>(Q_inv)))))</span>
-<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a><span class="er">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>Python</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>tau <span class="op">=</span> get_scaling_factor(brooklyn_nbs)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>tau</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><strong>R</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>tau <span class="ot">=</span> <span class="fu">get_scaling_factor</span>(brooklyn_nbs)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>tau</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
 <section id="assemble-the-input-data" class="level4">
 <h4 class="anchored" data-anchor-id="assemble-the-input-data">Assemble the input data</h4>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>design_vars <span class="op">=</span> np.array([<span class="st">&#39;pct_pubtransit&#39;</span>,<span class="st">&#39;med_hh_inc&#39;</span>, <span class="st">&#39;traffic&#39;</span>, <span class="st">&#39;frag_index&#39;</span>])</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>design_mat <span class="op">=</span> brooklyn_geodata[design_vars].to_numpy()</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>design_mat[:, <span class="dv">1</span>] <span class="op">=</span> np.log(design_mat[:, <span class="dv">1</span>])</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>design_mat[:, <span class="dv">2</span>] <span class="op">=</span> np.log(design_mat[:, <span class="dv">2</span>])</span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(data<span class="op">=</span>design_mat).describe()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>design_vars <span class="op">=</span> np.array([<span class="st">&#39;pct_pubtransit&#39;</span>,<span class="st">&#39;med_hh_inc&#39;</span>, <span class="st">&#39;traffic&#39;</span>, <span class="st">&#39;frag_index&#39;</span>])</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>design_mat <span class="op">=</span> brooklyn_geodata[design_vars].to_numpy()</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>design_mat[:, <span class="dv">1</span>] <span class="op">=</span> np.log(design_mat[:, <span class="dv">1</span>])</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>design_mat[:, <span class="dv">2</span>] <span class="op">=</span> np.log(design_mat[:, <span class="dv">2</span>])</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(data<span class="op">=</span>design_mat).describe()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>bym2_data <span class="op">=</span> {<span class="st">&quot;N&quot;</span>:brooklyn_geodata.shape[<span class="dv">0</span>],</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;y&quot;</span>:brooklyn_geodata[<span class="st">&#39;count&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;E&quot;</span>:brooklyn_geodata[<span class="st">&#39;kid_pop&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;K&quot;</span>:<span class="dv">4</span>,</span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;xs&quot;</span>:design_mat,</span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;N_edges&quot;</span>: edge_pairs.shape[<span class="dv">1</span>],</span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;neighbors&quot;</span>: edge_pairs,</span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>         <span class="st">&quot;tau&quot;</span>:<span class="fl">0.7</span></span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>bym2_data <span class="op">=</span> {<span class="st">&quot;N&quot;</span>:brooklyn_geodata.shape[<span class="dv">0</span>],</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;y&quot;</span>:brooklyn_geodata[<span class="st">&#39;count&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;E&quot;</span>:brooklyn_geodata[<span class="st">&#39;kid_pop&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;K&quot;</span>:<span class="dv">4</span>,</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;xs&quot;</span>:design_mat,</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;N_edges&quot;</span>: edge_pairs.shape[<span class="dv">1</span>],</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;neighbors&quot;</span>: edge_pairs,</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>         <span class="st">&quot;tau&quot;</span>:<span class="fl">0.658</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>design_mat <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(brooklyn_geodata) <span class="sc">%&gt;%</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pct_pubtransit, med_hh_inc, traffic, frag_index) <span class="sc">%&gt;%</span></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">med_hh_inc =</span> <span class="fu">log</span>(med_hh_inc),</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">traffic =</span> <span class="fu">log</span>(traffic))</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(design_mat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>design_mat <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(brooklyn_geodata) <span class="sc">%&gt;%</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pct_pubtransit, med_hh_inc, traffic, frag_index) <span class="sc">%&gt;%</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">med_hh_inc =</span> <span class="fu">log</span>(med_hh_inc),</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">traffic =</span> <span class="fu">log</span>(traffic))</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(design_mat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>bym2_data <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">N =</span> <span class="fu">nrow</span>(brooklyn_geodata),</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">as.integer</span>(brooklyn_geodata<span class="sc">$</span>count),</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">E =</span> <span class="fu">as.integer</span>(brooklyn_geodata<span class="sc">$</span>kid_pop),</span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">K =</span> <span class="dv">4</span>,</span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">xs =</span> design_mat,</span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">N_edges =</span> <span class="fu">ncol</span>(brooklyn_nbs_adj),</span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">neighbors =</span> brooklyn_nbs_adj,</span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">tau =</span> <span class="fl">0.658</span></span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>bym2_data <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">N =</span> <span class="fu">nrow</span>(brooklyn_geodata),</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">as.integer</span>(brooklyn_geodata<span class="sc">$</span>count),</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">E =</span> <span class="fu">as.integer</span>(brooklyn_geodata<span class="sc">$</span>kid_pop),</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">K =</span> <span class="dv">4</span>,</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">xs =</span> design_mat,</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">N_edges =</span> <span class="fu">ncol</span>(brooklyn_nbs_adj),</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">neighbors =</span> brooklyn_nbs_adj,</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">tau =</span> tau</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 </section>
@@ -3857,29 +3911,66 @@ color: var(--quarto-text-muted);
 <h4 class="anchored" data-anchor-id="model-is-compiled-as-needed-on-instantiation">Model is compiled (as needed) on instantiation</h4>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>bym2_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>bym2_model_file)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>bym2_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>bym2_model_file)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>bym2_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span>bym2_model_file)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>bym2_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span>bym2_model_file)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="run-the-nuts-hmc-sampler-summarize-results" class="level4">
 <h4 class="anchored" data-anchor-id="run-the-nuts-hmc-sampler-summarize-results">Run the NUTS-HMC sampler, summarize results</h4>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>bym2_fit <span class="op">=</span> bym2_mod.sample(data<span class="op">=</span>bym2_data)</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>bym2_summary <span class="op">=</span> bym2_fit.summary()</span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>bym2_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>bym2_fit <span class="op">=</span> bym2_mod.sample(data<span class="op">=</span>bym2_data)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>bym2_summary <span class="op">=</span> bym2_fit.summary()</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>bym2_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>bym2_fit <span class="ot">=</span> bym2_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>bym2_data, <span class="at">parallel_chains=</span>cores)</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>bym2_fit </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>bym2_fit <span class="ot">=</span> bym2_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>bym2_data, <span class="at">parallel_chains=</span>cores, <span class="at">refresh=</span><span class="dv">0</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>bym2_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
+</section>
+<section id="using-variational-methods-to-initialize-parameters-for-mcmc" class="level2">
+<h2 class="anchored" data-anchor-id="using-variational-methods-to-initialize-parameters-for-mcmc">Using variational methods to initialize parameters for MCMC</h2>
+<p>By default, Stan’s NUTS-HMC sampler algorithm randomly initializes all model parameters in the range uniform[-2, 2]. When the true parameter value is outside of this range, starting from the estimates obtained from Stan’s variational methods Pathfinder and ADVI will improve adaptation, resulting in faster warmup and a better sample.</p>
+<p>See <a href="https://mc-stan.org/cmdstanpy/users-guide/examples/VI%20as%20Sampler%20Inits.html">Using Variational Estimates to Initialize the NUTS-HMC Sampler</a> (Python) and <a href="https://discourse.mc-stan.org/t/using-pathfinder-or-other-method-to-set-initial-values-for-sampling/34960/8">this example on Stan Discourse</a> (R).</p>
+<p>For the BYM2 model, the LOO diagnostic, based on Pareto-smoothed importance sampling (PSIS) is problematic, as the ICAR component in the BYM2 model doesn’t factorize, therefore, when running Pathfinder, we set parameter <code>psis_resample</code> to False.</p>
+<p><strong>Python</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>bym2_pathfinder <span class="op">=</span> bym2_mod.pathfinder(data<span class="op">=</span>bym2_data, psis_resample<span class="op">=</span>FALSE)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>bym2_inits <span class="op">=</span> bym2_pathfinder.create_inits()</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>bym2_inits_fit <span class="op">=</span> bym2_mod.sample(data<span class="op">=</span>bym2_data, inits<span class="op">=</span>bym2_inits)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>bym2_inits_summary <span class="op">=</span> bym2_inits_fit.summary()</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>bym2_inits_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>bym2_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>]]</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="co"># no summary method for pathfinder draws, summarize var-by-var</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;Pathfinder estimates&#39;</span>)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;beta_intercept&#39;</span>, pd.Series(bym2_pathfinder.beta_intercept).describe())</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;sigma&#39;</span>, pd.Series(bym2_pathfinder.sigma).describe())</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;rho&#39;</span>, pd.Series(bym2_pathfinder.sigma).describe())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><strong>R</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>bym2_pathfinder <span class="ot">=</span> bym2_mod<span class="sc">$</span><span class="fu">pathfinder</span>(<span class="at">data=</span>bym2_data, <span class="at">psis_resample=</span><span class="cn">FALSE</span>)</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>bym2_init_fit <span class="ot">=</span> bym2_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>bym2_data, <span class="at">parallel_chains=</span>cores, <span class="at">refresh=</span><span class="dv">0</span>, <span class="at">init=</span>bym2_pathfinder)</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>bym2_init_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>bym2_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>))</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&#39;Pathfinder estimates&#39;</span>)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>bym2_pathfinder<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
 </section>
 <section id="model-comparison-bym2-vs-icar-vs.-ordinary-random-effects" class="level2">
 <h2 class="anchored" data-anchor-id="model-comparison-bym2-vs-icar-vs.-ordinary-random-effects">Model Comparison: BYM2 vs ICAR vs. ordinary random effects</h2>
@@ -3887,61 +3978,61 @@ color: var(--quarto-text-muted);
 <h4 class="anchored" data-anchor-id="icar-model">ICAR model</h4>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>pois_icar_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>os.path.join(</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_icar.stan&#39;</span>))</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>pois_icar_fit <span class="op">=</span> pois_icar_mod.sample(data<span class="op">=</span>bym2_data)</span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>pois_icar_summary <span class="op">=</span> pois_icar_fit.summary()</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>pois_icar_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>pois_icar_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>os.path.join(</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_icar.stan&#39;</span>))</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>pois_icar_fit <span class="op">=</span> pois_icar_mod.sample(data<span class="op">=</span>bym2_data)</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>pois_icar_summary <span class="op">=</span> pois_icar_fit.summary()</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>pois_icar_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>pois_icar_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span><span class="fu">file.path</span>(</span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_icar.stan&#39;</span>)) </span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>pois_icar_fit <span class="ot">=</span> pois_icar_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>bym2_data, <span class="at">parallel_chains=</span>cores)</span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>pois_icar_fit </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>pois_icar_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span><span class="fu">file.path</span>(</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_icar.stan&#39;</span>)) </span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>pois_icar_fit <span class="ot">=</span> pois_icar_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>bym2_data, <span class="at">parallel_chains=</span>cores, <span class="at">refresh=</span><span class="dv">0</span>)</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>pois_icar_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="ordinary-random-effects-model" class="level4">
 <h4 class="anchored" data-anchor-id="ordinary-random-effects-model">Ordinary random effects model</h4>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>pois_re_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>os.path.join(</span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_re.stan&#39;</span>))</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>pois_re_fit <span class="op">=</span> pois_re_mod.sample(data<span class="op">=</span>bym2_data)</span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>pois_re_summary <span class="op">=</span> pois_re_fit.summary()</span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>pois_re_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>pois_re_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>os.path.join(</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_re.stan&#39;</span>))</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>pois_re_fit <span class="op">=</span> pois_re_mod.sample(data<span class="op">=</span>bym2_data)</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>pois_re_summary <span class="op">=</span> pois_re_fit.summary()</span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>pois_re_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>pois_re_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span><span class="fu">file.path</span>(</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_re.stan&#39;</span>)) </span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>pois_re_fit <span class="ot">=</span> pois_re_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>bym2_data, <span class="at">parallel_chains=</span>cores)</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>pois_re_fit </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>pois_re_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span><span class="fu">file.path</span>(</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_re.stan&#39;</span>)) </span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>pois_re_fit <span class="ot">=</span> pois_re_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>bym2_data, <span class="at">parallel_chains=</span>cores, <span class="at">refresh=</span><span class="dv">0</span>)</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>pois_re_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Which model provides a better fit (on the Brooklyn subset of the data)?</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;BYM2&#39;</span>)</span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(bym2_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[[<span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>]])</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;</span><span class="ch">\n</span><span class="st">Poisson ICAR&#39;</span>)</span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pois_icar_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[[<span class="st">&#39;sigma&#39;</span>]])</span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;</span><span class="ch">\n</span><span class="st">Poisson Ordinary random effects&#39;</span>)</span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pois_re_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[[<span class="st">&#39;sigma&#39;</span>]])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;BYM2&#39;</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(bym2_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[[<span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>]])</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;</span><span class="ch">\n</span><span class="st">Poisson ICAR&#39;</span>)</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pois_icar_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[[<span class="st">&#39;sigma&#39;</span>]])</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;</span><span class="ch">\n</span><span class="st">Poisson Ordinary random effects&#39;</span>)</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pois_re_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[[<span class="st">&#39;sigma&#39;</span>]])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;BYM2&quot;</span>)</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>bym2_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>))</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Poisson ICAR&quot;</span>)</span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>pois_icar_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;sigma&#39;</span>))</span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Poisson Ordinary Random Effects&quot;</span>)</span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>pois_re_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;sigma&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;BYM2&quot;</span>)</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>bym2_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>))</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Poisson ICAR&quot;</span>)</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>pois_icar_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;sigma&#39;</span>))</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Poisson Ordinary Random Effects&quot;</span>)</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>pois_re_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;sigma&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="visual-comparison" class="level3">
@@ -3950,89 +4041,74 @@ color: var(--quarto-text-muted);
 <h4 class="anchored" data-anchor-id="bym2-model">BYM2 model</h4>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>idata_bym2 <span class="op">=</span> az.from_cmdstanpy(</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>    bym2_fit,</span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: bym2_data[<span class="st">&#39;y&#39;</span>]}</span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>idata_bym2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>idata_bym2 <span class="op">=</span> az.from_cmdstanpy(</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>    bym2_fit,</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: bym2_data[<span class="st">&#39;y&#39;</span>]}</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>idata_bym2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>az_bym2 <span class="op">=</span> az.plot_ppc(idata_bym2, data_pairs<span class="op">=</span>{<span class="st">&quot;y&quot;</span>:<span class="st">&quot;y_rep&quot;</span>})</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>az_bym2[<span class="dv">0</span>,<span class="dv">0</span>].title.text <span class="op">=</span> <span class="st">&quot;BYM2 model posterior predictive check&quot;</span></span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>az.plots.backends.show_layout(az_bym2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>az_bym2 <span class="op">=</span> az.plot_ppc(idata_bym2, data_pairs<span class="op">=</span>{<span class="st">&quot;y&quot;</span>:<span class="st">&quot;y_rep&quot;</span>})</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>az_bym2.set_title(<span class="st">&quot;BYM2 model posterior predictive check&quot;</span>)</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>az_bym2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>y_rep <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(bym2_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(brooklyn_geodata<span class="sc">$</span>count, y_rep) <span class="sc">+</span></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: BYM2 model&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>y_rep_bym2 <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(bym2_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(brooklyn_geodata<span class="sc">$</span>count, y_rep_bym2) <span class="sc">+</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: BYM2 model&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="icar-model-1" class="level4">
 <h4 class="anchored" data-anchor-id="icar-model-1">ICAR model</h4>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>idata_pois_icar <span class="op">=</span> az.from_cmdstanpy(</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>    pois_icar_fit,</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
-<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
-<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: bym2_data[<span class="st">&#39;y&#39;</span>]}</span>
-<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>idata_pois_icar</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>idata_pois_icar <span class="op">=</span> az.from_cmdstanpy(</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>    pois_icar_fit,</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: bym2_data[<span class="st">&#39;y&#39;</span>]}</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>idata_pois_icar</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>az_pois_icar_ppc_plot <span class="op">=</span> az.plot_ppc(idata_pois_icar, data_pairs<span class="op">=</span>{<span class="st">&quot;y&quot;</span>:<span class="st">&quot;y_rep&quot;</span>})</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>az_pois_icar_ppc_plot.set_title(<span class="st">&quot;Poisson ICAR model posterior predictive check&quot;</span>)</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>az_pois_icar_ppc_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>az_pois_icar_ppc_plot <span class="op">=</span> az.plot_ppc(idata_pois_icar, data_pairs<span class="op">=</span>{<span class="st">&quot;y&quot;</span>:<span class="st">&quot;y_rep&quot;</span>})</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>az_pois_icar_ppc_plot.set_title(<span class="st">&quot;Poisson ICAR model posterior predictive check&quot;</span>)</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>az_pois_icar_ppc_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>y_rep <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_icar_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(brooklyn_geodata<span class="sc">$</span>count, y_rep) <span class="sc">+</span></span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: Poisson ICAR model&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>y_rep_icar <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_icar_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(brooklyn_geodata<span class="sc">$</span>count, y_rep_icar) <span class="sc">+</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: Poisson ICAR model&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="re-model" class="level4">
 <h4 class="anchored" data-anchor-id="re-model">RE model</h4>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>idata_pois_re <span class="op">=</span> az.from_cmdstanpy(</span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    pois_re_fit,</span>
-<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
-<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
-<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
-<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: bym2_data[<span class="st">&#39;y&#39;</span>]}</span>
-<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>az_pois_re_ppc_plot <span class="op">=</span> az.plot_ppc(idata_pois_re, data_pairs<span class="op">=</span>{<span class="st">&quot;y&quot;</span>:<span class="st">&quot;y_rep&quot;</span>})</span>
-<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>az_pois_re_ppc_plot.set_title(<span class="st">&quot;Poisson RE model posterior predictive check&quot;</span>)</span>
-<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>az_pois_re_ppc_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>idata_pois_re <span class="op">=</span> az.from_cmdstanpy(</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>    pois_re_fit,</span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: bym2_data[<span class="st">&#39;y&#39;</span>]}</span>
+<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb42-8"><a href="#cb42-8" aria-hidden="true" tabindex="-1"></a>az_pois_re_ppc_plot <span class="op">=</span> az.plot_ppc(idata_pois_re, data_pairs<span class="op">=</span>{<span class="st">&quot;y&quot;</span>:<span class="st">&quot;y_rep&quot;</span>})</span>
+<span id="cb42-9"><a href="#cb42-9" aria-hidden="true" tabindex="-1"></a>az_pois_re_ppc_plot.set_title(<span class="st">&quot;Poisson RE model posterior predictive check&quot;</span>)</span>
+<span id="cb42-10"><a href="#cb42-10" aria-hidden="true" tabindex="-1"></a>az_pois_re_ppc_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>y_rep <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_re_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
-<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(brooklyn_geodata<span class="sc">$</span>count, y_rep) <span class="sc">+</span></span>
-<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: Poisson RE model&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>y_rep_re <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_re_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(brooklyn_geodata<span class="sc">$</span>count, y_rep_re) <span class="sc">+</span></span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: Poisson RE model&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-</section>
-<section id="leave-one-out-cross-validation-loo" class="level3">
-<h3 class="anchored" data-anchor-id="leave-one-out-cross-validation-loo">Leave-one-out cross-validation (LOO)</h3>
-<p><strong>Python</strong></p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>az.compare({<span class="st">&quot;bym2&quot;</span>:idata_bym2, <span class="st">&quot;poisson_icar&quot;</span>:idata_pois_icar, <span class="st">&quot;poisson_re&quot;</span>:idata_pois_re})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<p><strong>R</strong></p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>loo_bym2 <span class="ot">&lt;-</span> <span class="fu">loo</span>(bym2_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;log_lik&quot;</span>), <span class="at">save_psis =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>loo_icar_pois <span class="ot">&lt;-</span> <span class="fu">loo</span>(pois_icar_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;log_lik&quot;</span>), <span class="at">save_psis =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>loo_re_pois <span class="ot">&lt;-</span> <span class="fu">loo</span>(pois_re_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;log_lik&quot;</span>), <span class="at">save_psis =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a><span class="fu">loo_compare</span>(loo_bym2, loo_icar_pois, loo_re_pois)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
 </section>
 </section>
 

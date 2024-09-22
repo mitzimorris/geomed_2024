@@ -9,6 +9,8 @@ format:
 execute:
   eval: false
   keep-ipynb: true
+editor_options: 
+  chunk_output_type: console
 ---
 
 ## Example Dataset:  NYC traffic accidents, localized to US Census blocks
@@ -143,7 +145,7 @@ print(nyc_geodata['BoroName'].value_counts())
 
 **R**
 ```{r}
-nyc_geodata = st_read(file_path("data", "nyc_study.geojson")
+nyc_geodata = st_read(file.path("data", "nyc_study.geojson"))
 class(nyc_geodata)
 names(nyc_geodata)
 table(nyc_geodata$BoroName)
@@ -326,3 +328,108 @@ brooklyn_coords = st_coordinates(st_centroid(brooklyn_geodata['geometry']))
 plot(st_geometry(brooklyn_geodata), col='skyblue')
 plot(brooklyn_nbs, coords=brooklyn_coords, add=TRUE, pch=20, cex=0.6)
 ```
+
+### Manipulating the neighborhood graph - removing spurious connections
+
+The neighborhood graph of New York City given the set of US Census shapefiles for the 2010 Census Tracts
+has a few anomolies, showing multiple adjacencies between parts of Manhattan, Brooklyn, and Queens.
+This may be due to bridges, tunnels, and subways, or it may simply be due to the way that the map was drawn.
+For our analysis, a study of pedestrian traffic accidents, Manhattan is an island.
+To edit the neighborhood graph, it is necessary to edit the neighborhood weights objects.
+
+** Python **
+
+
+```{python}
+from libpysal.weights import W
+
+manhattan_indices = nyc_geodata[nyc_geodata['BoroName'] == 'Manhattan'].index
+brooklyn_indices = nyc_geodata[nyc_geodata['BoroName'] == 'Brooklyn'].index
+queens_indices = nyc_geodata[nyc_geodata['BoroName'] == 'Queens'].index
+
+# Iterate through Manhattan, Brooklyn, and Queens indices to update both neighbors and weights
+for manhattan_tract in manhattan_indices:
+    neighbors = nyc_nbs.neighbors[manhattan_tract]
+    weights = nyc_nbs.weights[manhattan_tract]
+    clean_neighbors_weights = [(neighbor, weight) for neighbor, weight in zip(neighbors, weights) 
+                             if neighbor not in brooklyn_indices and neighbor not in queens_indices]
+    
+    # Unzip the clean neighbors and weights
+    if clean_neighbors_weights:
+        clean_neighbors, clean_weights = zip(*clean_neighbors_weights)
+    else:
+        clean_neighbors, clean_weights = [], []
+    
+    nyc_nbs.neighbors[manhattan_tract] = list(clean_neighbors)
+    nyc_nbs.weights[manhattan_tract] = list(clean_weights)
+
+for brooklyn_tract in brooklyn_indices:
+    neighbors = nyc_nbs.neighbors[brooklyn_tract]
+    weights = nyc_nbs.weights[brooklyn_tract]
+    clean_neighbors_weights = [(neighbor, weight) for neighbor, weight in zip(neighbors, weights) 
+                             if neighbor not in manhattan_indices]
+    
+    if clean_neighbors_weights:
+        clean_neighbors, clean_weights = zip(*clean_neighbors_weights)
+    else:
+        clean_neighbors, clean_weights = [], []
+
+    nyc_nbs.neighbors[brooklyn_tract] = list(clean_neighbors)
+    nyc_nbs.weights[brooklyn_tract] = list(clean_weights)
+
+for queens_tract in queens_indices:
+    neighbors = nyc_nbs.neighbors[queens_tract]
+    weights = nyc_nbs.weights[queens_tract]
+    clean_neighbors_weights = [(neighbor, weight) for neighbor, weight in zip(neighbors, weights) 
+                             if neighbor not in manhattan_indices]
+    
+    if clean_neighbors_weights:
+        clean_neighbors, clean_weights = zip(*clean_neighbors_weights)
+    else:
+        clean_neighbors, clean_weights = [], []
+
+    nyc_nbs.neighbors[queens_tract] = list(clean_neighbors)
+    nyc_nbs.weights[queens_tract] = list(clean_weights)
+
+# re-create the W object with the updated neighbors and weights
+clean_nyc_nbs = W(nyc_nbs.neighbors, nyc_nbs.weights)
+```
+
+
+** R **
+```{r}
+# remove specific neighbors from the nb object
+remove_neighbors <- function(nb_object, target_indices, remove_indices) {
+  for (i in target_indices) {
+    # Keep neighbors that are NOT in the remove_indices
+    nb_object[[i]] <- setdiff(nb_object[[i]], remove_indices)
+  }
+  return(nb_object)
+}
+
+manhattan_indices <- which(nyc_geodata$BoroName == 'Manhattan')
+brooklyn_indices <- which(nyc_geodata$BoroName == 'Brooklyn')
+queens_indices <- which(nyc_geodata$BoroName == 'Queens')
+
+nyc_nbs <- remove_neighbors(nyc_nbs, manhattan_indices, c(brooklyn_indices, queens_indices))
+nyc_nbs <- remove_neighbors(nyc_nbs, brooklyn_indices, manhattan_indices)
+nyc_nbs <- remove_neighbors(nyc_nbs, queens_indices, manhattan_indices)
+```
+
+Redraw maps to check updated neighborhood graphs.
+
+** Python **
+```{python}
+plot_spatial_weights(clean_nyc_nbs, nyc_geodata)
+```
+
+** R **
+```{r}
+plot(st_geometry(nyc_geodata), col='lightblue')
+plot(nyc_nbs, coords=nyc_coords, add=TRUE, pch=20, cex=0.6)
+```
+```{r}
+summary(nyc_nbs)
+```
+
+### Manipulating the neighborhood graph - adding connections

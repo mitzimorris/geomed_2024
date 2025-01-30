@@ -3572,9 +3572,25 @@ color: var(--quarto-text-muted);
   <ul>
   <li><a href="#notebook-setup" id="toc-notebook-setup" class="nav-link active" data-scroll-target="#notebook-setup">Notebook Setup</a></li>
   <li><a href="#base-model-poisson.stan" id="toc-base-model-poisson.stan" class="nav-link" data-scroll-target="#base-model-poisson.stan">Base Model: <code>poisson.stan</code></a></li>
+  <li><a href="#model-checking-and-model-comparison" id="toc-model-checking-and-model-comparison" class="nav-link" data-scroll-target="#model-checking-and-model-comparison">Model Checking and Model Comparison</a>
+  <ul class="collapse">
+  <li><a href="#the-posterior-predictive-check" id="toc-the-posterior-predictive-check" class="nav-link" data-scroll-target="#the-posterior-predictive-check">The Posterior Predictive Check</a></li>
+  <li><a href="#leave-one-out-cross-validation-loo" id="toc-leave-one-out-cross-validation-loo" class="nav-link" data-scroll-target="#leave-one-out-cross-validation-loo">Leave-one-out cross-validation (LOO)</a></li>
+  </ul></li>
+  <li><a href="#model-fitting" id="toc-model-fitting" class="nav-link" data-scroll-target="#model-fitting">Model Fitting</a>
+  <ul class="collapse">
+  <li><a href="#assemble-the-input-data" id="toc-assemble-the-input-data" class="nav-link" data-scroll-target="#assemble-the-input-data">Assemble the input data</a></li>
+  <li><a href="#instantiate-the-model" id="toc-instantiate-the-model" class="nav-link" data-scroll-target="#instantiate-the-model">Instantiate the model</a></li>
+  <li><a href="#run-the-nuts-hmc-sampler" id="toc-run-the-nuts-hmc-sampler" class="nav-link" data-scroll-target="#run-the-nuts-hmc-sampler">Run the NUTS-HMC sampler</a></li>
+  <li><a href="#summarize-the-results" id="toc-summarize-the-results" class="nav-link" data-scroll-target="#summarize-the-results">Summarize the results</a></li>
+  </ul></li>
   <li><a href="#refinement-mean-center-predictor-data" id="toc-refinement-mean-center-predictor-data" class="nav-link" data-scroll-target="#refinement-mean-center-predictor-data">Refinement: Mean-Center Predictor Data</a></li>
   <li><a href="#predictor-data-scales" id="toc-predictor-data-scales" class="nav-link" data-scroll-target="#predictor-data-scales">Predictor Data Scales</a></li>
-  <li><a href="#model-checking-the-posterior-predictive-check" id="toc-model-checking-the-posterior-predictive-check" class="nav-link" data-scroll-target="#model-checking-the-posterior-predictive-check">Model Checking: The Posterior Predictive Check</a></li>
+  <li><a href="#best-practices" id="toc-best-practices" class="nav-link" data-scroll-target="#best-practices">Best Practices</a></li>
+  <li><a href="#posterior-predictive-checks" id="toc-posterior-predictive-checks" class="nav-link" data-scroll-target="#posterior-predictive-checks">Posterior Predictive Checks</a>
+  <ul class="collapse">
+  <li><a href="#posterior-predictive-plots---y-vs-y_rep" id="toc-posterior-predictive-plots---y-vs-y_rep" class="nav-link" data-scroll-target="#posterior-predictive-plots---y-vs-y_rep">Posterior predictive plots - <code>y</code> vs <code>y_rep</code></a></li>
+  </ul></li>
   <li><a href="#refinement-add-random-effects" id="toc-refinement-add-random-effects" class="nav-link" data-scroll-target="#refinement-add-random-effects">Refinement: Add random effects</a></li>
   <li><a href="#model-comparison" id="toc-model-comparison" class="nav-link" data-scroll-target="#model-comparison">Model Comparison</a></li>
   </ul>
@@ -3633,28 +3649,9 @@ color: var(--quarto-text-muted);
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> cmdstanpy <span class="im">import</span> CmdStanModel, cmdstan_path, cmdstan_version</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># suppress plotnine warnings</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> warnings</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">&#39;ignore&#39;</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># setup plotnine look and feel</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>p9.theme_set(</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  p9.theme_grey() <span class="op">+</span> </span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  p9.theme(text<span class="op">=</span>p9.element_text(size<span class="op">=</span><span class="dv">10</span>),</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>        plot_title<span class="op">=</span>p9.element_text(size<span class="op">=</span><span class="dv">14</span>),</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>        axis_title_x<span class="op">=</span>p9.element_text(size<span class="op">=</span><span class="dv">12</span>),</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>        axis_title_y<span class="op">=</span>p9.element_text(size<span class="op">=</span><span class="dv">12</span>),</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>        axis_text_x<span class="op">=</span>p9.element_text(size<span class="op">=</span><span class="dv">8</span>),</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>        axis_text_y<span class="op">=</span>p9.element_text(size<span class="op">=</span><span class="dv">8</span>)</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>       )</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>xlabels_90 <span class="op">=</span> p9.theme(axis_text_x <span class="op">=</span> p9.element_text(angle<span class="op">=</span><span class="dv">90</span>, hjust<span class="op">=</span><span class="dv">1</span>))</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>map_theme <span class="op">=</span>  p9.theme(figure_size<span class="op">=</span>(<span class="dv">7</span>,<span class="dv">6</span>),</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>                 axis_text_x<span class="op">=</span>p9.element_blank(),</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>                 axis_ticks_x<span class="op">=</span>p9.element_blank(),</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>                 axis_text_y<span class="op">=</span>p9.element_blank(),</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>                 axis_ticks_y<span class="op">=</span>p9.element_blank())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> warnings</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">&#39;ignore&#39;</span>)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> utils_dataviz <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
@@ -3667,25 +3664,90 @@ color: var(--quarto-text-muted);
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bayesplot)</span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(loo)</span>
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(parallel)</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>cores <span class="ot">=</span> <span class="fu">floor</span>(parallel<span class="sc">::</span><span class="fu">detectCores</span>() <span class="sc">/</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>cores <span class="ot">=</span> <span class="fu">floor</span>(parallel<span class="sc">::</span><span class="fu">detectCores</span>() <span class="sc">/</span> <span class="dv">2</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;utils_dataviz.R&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<section id="load-the-nyc-study-data" class="level4">
-<h4 class="anchored" data-anchor-id="load-the-nyc-study-data">Load the NYC study data</h4>
+</section>
+<section id="base-model-poisson.stan" class="level2">
+<h2 class="anchored" data-anchor-id="base-model-poisson.stan">Base Model: <code>poisson.stan</code></h2>
+<p>This file is in directory <code>stan/poisson.stan</code>.</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="op">=</span> gpd.read_file(os.path.join(<span class="st">&#39;data&#39;</span>, <span class="st">&#39;nyc_study.geojson&#39;</span>))</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(nyc_geodata.columns)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(nyc_geodata[<span class="st">&#39;BoroName&#39;</span>].value_counts())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>poisson_model_file <span class="op">=</span> os.path.join(<span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson.stan&#39;</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(poisson_model_file, <span class="st">&#39;r&#39;</span>) <span class="im">as</span> <span class="bu">file</span>:</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    contents <span class="op">=</span> <span class="bu">file</span>.read()</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(contents)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="ot">=</span> <span class="fu">st_read</span>(<span class="st">&quot;data/nyc_study.geojson&quot;</span>)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(nyc_geodata)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(nyc_geodata<span class="sc">$</span>BoroName)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>poisson_model_file <span class="ot">=</span> <span class="fu">file.path</span>(<span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson.stan&#39;</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">readLines</span>(poisson_model_file), <span class="at">sep=</span><span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="assemble-the-input-data" class="level4">
-<h4 class="anchored" data-anchor-id="assemble-the-input-data">Assemble the input data</h4>
+<section id="model-checking-and-model-comparison" class="level2">
+<h2 class="anchored" data-anchor-id="model-checking-and-model-comparison">Model Checking and Model Comparison</h2>
+<p>The generated quantities block of the base model contains the following statements:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">generated quantities</span> {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[N] <span class="dt">int</span> y_rep;</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vector</span>[N] log_lik;</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  {</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">vector</span>[N] eta = log_E + beta0 + xs * betas;</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    y_rep = max(eta) &lt; <span class="dv">26</span> ? poisson_log_rng(eta) : rep_array(-<span class="dv">1</span>, N);</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (n <span class="cf">in</span> <span class="dv">1</span>:N) {</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>      log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The quantities <code>y_rep</code> and <code>log_lik</code> are used run posterior predictive checks and leave-one-out cross-validation (LOO-CV), respectively.</p>
+<section id="the-posterior-predictive-check" class="level3">
+<h3 class="anchored" data-anchor-id="the-posterior-predictive-check">The Posterior Predictive Check</h3>
+<p>Posterior predictive checks tests how well the fitted model captures basic features of the data. The base model, and all models in these notebooks, use the <code>generated quantities</code> block to declare and populate vector <code>y_rep</code> (“replicated data”), which is used for <a href="https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#simulating-from-the-posterior-predictive-distribution">posterior predictive checking</a>, as described in the Stan User’s Guide.</p>
+<blockquote class="blockquote">
+<p>Posterior predictive checks are a way of measuring whether a model does a good job of capturing relevant aspects of the data, such as means, standard deviations, and quantiles.</p>
+</blockquote>
+<blockquote class="blockquote">
+<p>The posterior predictive distribution is the distribution over new observations given previous observations. It’s predictive in the sense that it’s predicting behavior on new data that is not part of the training set. It’s posterior in that everything is conditioned on observed data <span class="math inline">\(y\)</span>.</p>
+</blockquote>
+<blockquote class="blockquote">
+<p>The posterior predictive distribution for replications <span class="math inline">\(y^{\textrm{rep}}\)</span> of the original data set <span class="math inline">\(y\)</span> given model parameters <span class="math inline">\(\theta\)</span> is defined by <span class="math display">\[
+p(y^{\textrm{rep}} \mid y)
+= \int p(y^{\textrm{rep}} \mid \theta)
+\cdot p(\theta \mid y) \, \textrm{d}\theta.
+\]</span></p>
+</blockquote>
+<p>This is computed by the following statements:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[N] <span class="dt">int</span> y_rep;</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  {</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">vector</span>[N] eta = log_E + beta0 + xs * betas;</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    y_rep = max(eta) &lt; <span class="dv">26</span> ? poisson_log_rng(eta) : rep_array(-<span class="dv">1</span>, N);</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  }</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>It directly parallels the model block statements of the likelihood:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>  y ~ poisson_log(log_E + beta0 + xs * betas);</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Because the poisson_log_rng function parameter must be less than <span class="math inline">\(30 \log 2\)</span>, we first compute this as local variable <code>eta</code> (to avoid output overhead), then use Stan’s ternary operator in tandem with the vectorized <a href="https://mc-stan.org/docs/functions-reference/unbounded_discrete_distributions.html#poisson-distribution-log-parameterization"><code>poisson_log_rng</code></a> function to efficiently populate <code>y_rep</code>.</p>
+</section>
+<section id="leave-one-out-cross-validation-loo" class="level3">
+<h3 class="anchored" data-anchor-id="leave-one-out-cross-validation-loo">Leave-one-out cross-validation (LOO)</h3>
+<p>Posterior predictive checks assess how well the model captures relevant aspects of the observed data. Leave-one-out cross-validation (LOO CV) provides a measure how well the model will generalize to new, unseen data. The <a href="https://mc-stan.org/loo/">loo package</a> provides an implementation of the algorithm presented in</p>
+<ul>
+<li>Vehtari, A., Gelman, A. &amp; Gabry, J. Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC. Stat Comput 27, 1413–1432 (2017). https://doi.org/10.1007/s11222-016-9696-4</li>
+<li>Vehtari, A.,Simpson, D.P., Gelman, A., Yao, Y., &amp; Gabry, J. Pareto Smoothed Importance Sampling, arxiv, 2024. https://arxiv.org/abs/1507.02646</li>
+</ul>
+<p>It simulates what would happen if we refit the model while leaving out each data point, one at a time. Since refitting the model repeatedly is too computationally expensive), loo() uses Pareto Smoothed Importance Sampling (PSIS) to approximate this process efficiently.</p>
+<p>The primary metric from <code>loo()</code> is the Expected Log Predictive Density (ELPD) which is the log-probability of new data given the model. A higher ELPD means better predictive performance. However, the scale is relative, so the absolute ELPD value is not as important as the difference between ELPD scores for different models. This can be carried out using the <code>loo_compare()</code> function. By convention, both functions require that the Stan model outputs the generated quantity <code>log_lik</code>, which is simply the log likelihood. Although the <code>model</code> block computes the likelihood, this value is not saved. The most efficient way to capture this value is to recompute it in the <code>generated quantities</code> block, via the following statements.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vector</span>[N] log_lik;</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  {</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">vector</span>[N] eta = log_E + beta0 + xs * betas;</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (n <span class="cf">in</span> <span class="dv">1</span>:N) {</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>      log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  }</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+</section>
+<section id="model-fitting" class="level2">
+<h2 class="anchored" data-anchor-id="model-fitting">Model Fitting</h2>
+<section id="assemble-the-input-data" class="level3">
+<h3 class="anchored" data-anchor-id="assemble-the-input-data">Assemble the input data</h3>
 <p>The data block of the model declares variables:</p>
 <ul>
 <li><code>N</code> - the number of census tracts</li>
@@ -3694,87 +3756,84 @@ color: var(--quarto-text-muted);
 <li><code>K</code> - the number of predictors</li>
 <li><code>xs</code> - the N x K data matrix of predictors</li>
 </ul>
+<p>The study data and GIS data have been assembled into a single GeoJSON file. The dataset we’re using is that used in the analysis published in 2019 <a href="https://www.sciencedirect.com/science/article/pii/S1877584518301175">Bayesian Hierarchical Spatial Models: Implementing the Besag York Mollié Model in Stan</a>. The data consists of motor vehicle collisions in New York City, as recorded by the NYC Department of Transportation, between the years 2005-2014, restricted to collisions involving school age children 5-18 years of age as pedestrians.</p>
+<p><strong>Python</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="op">=</span> gpd.read_file(os.path.join(<span class="st">&#39;data&#39;</span>, <span class="st">&#39;nyc_study.geojson&#39;</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(nyc_geodata.columns)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(nyc_geodata[<span class="st">&#39;BoroName&#39;</span>].value_counts())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><strong>R</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="ot">=</span> <span class="fu">st_read</span>(<span class="st">&quot;data/nyc_study.geojson&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(nyc_geodata)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(nyc_geodata<span class="sc">$</span>BoroName)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
 <p>The predictors from the study data are columns: <code>pct_pubtransit</code>,<code>med_hh_inc</code>, <code>traffic</code>, <code>frag_index</code>.</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>design_vars <span class="op">=</span> np.array([<span class="st">&#39;pct_pubtransit&#39;</span>,<span class="st">&#39;med_hh_inc&#39;</span>, <span class="st">&#39;traffic&#39;</span>, <span class="st">&#39;frag_index&#39;</span>])</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>design_mat <span class="op">=</span> nyc_geodata[design_vars].to_numpy()</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>design_mat[:, <span class="dv">1</span>] <span class="op">=</span> np.log(design_mat[:, <span class="dv">1</span>])</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>design_mat[:, <span class="dv">2</span>] <span class="op">=</span> np.log(design_mat[:, <span class="dv">2</span>])</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>pois_data <span class="op">=</span> {<span class="st">&quot;N&quot;</span>:nyc_geodata.shape[<span class="dv">0</span>],</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;y&quot;</span>:nyc_geodata[<span class="st">&#39;count&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;E&quot;</span>:nyc_geodata[<span class="st">&#39;kid_pop&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;K&quot;</span>:<span class="dv">4</span>,</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;xs&quot;</span>:design_mat }</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>design_vars <span class="op">=</span> np.array([<span class="st">&#39;pct_pubtransit&#39;</span>,<span class="st">&#39;med_hh_inc&#39;</span>, <span class="st">&#39;traffic&#39;</span>, <span class="st">&#39;frag_index&#39;</span>])</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>design_mat <span class="op">=</span> nyc_geodata[design_vars].to_numpy()</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>design_mat[:, <span class="dv">1</span>] <span class="op">=</span> np.log(design_mat[:, <span class="dv">1</span>])</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>design_mat[:, <span class="dv">2</span>] <span class="op">=</span> np.log(design_mat[:, <span class="dv">2</span>])</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>pois_data <span class="op">=</span> {<span class="st">&quot;N&quot;</span>:nyc_geodata.shape[<span class="dv">0</span>],</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;y&quot;</span>:nyc_geodata[<span class="st">&#39;count&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;E&quot;</span>:nyc_geodata[<span class="st">&#39;kid_pop&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;K&quot;</span>:<span class="dv">4</span>,</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;xs&quot;</span>:design_mat }</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>design_mat <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(nyc_geodata) <span class="sc">%&gt;%</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pct_pubtransit, med_hh_inc, traffic, frag_index) <span class="sc">%&gt;%</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">med_hh_inc =</span> <span class="fu">log</span>(med_hh_inc),</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">traffic =</span> <span class="fu">log</span>(traffic))</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>pois_data <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">N =</span> <span class="fu">nrow</span>(nyc_geodata),</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">as.integer</span>(nyc_geodata<span class="sc">$</span>count),</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">E =</span> <span class="fu">as.integer</span>(nyc_geodata<span class="sc">$</span>kid_pop),</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">K =</span> <span class="dv">4</span>,</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">xs =</span> design_mat</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>design_mat <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(nyc_geodata) <span class="sc">%&gt;%</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pct_pubtransit, med_hh_inc, traffic, frag_index) <span class="sc">%&gt;%</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">med_hh_inc =</span> <span class="fu">log</span>(med_hh_inc),</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">traffic =</span> <span class="fu">log</span>(traffic))</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>pois_data <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">N =</span> <span class="fu">nrow</span>(nyc_geodata),</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">as.integer</span>(nyc_geodata<span class="sc">$</span>count),</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">E =</span> <span class="fu">as.integer</span>(nyc_geodata<span class="sc">$</span>kid_pop),</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">K =</span> <span class="dv">4</span>,</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">xs =</span> design_mat</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-</section>
-<section id="base-model-poisson.stan" class="level2">
-<h2 class="anchored" data-anchor-id="base-model-poisson.stan">Base Model: <code>poisson.stan</code></h2>
-<p>This file is in directory <code>stan/poisson.stan</code>.</p>
+<section id="instantiate-the-model" class="level3">
+<h3 class="anchored" data-anchor-id="instantiate-the-model">Instantiate the model</h3>
+<p>Creating a <code>CmdStanModel</code> object from a <code>.stan</code> file compiles or recompiles the model, as needed.</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>poisson_model_file <span class="op">=</span> os.path.join(<span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson.stan&#39;</span>)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(poisson_model_file, <span class="st">&#39;r&#39;</span>) <span class="im">as</span> <span class="bu">file</span>:</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    contents <span class="op">=</span> <span class="bu">file</span>.read()</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(contents)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>pois_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>poisson_model_file)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>poisson_model_file <span class="ot">=</span> <span class="fu">file.path</span>(<span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson.stan&#39;</span>)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">readLines</span>(poisson_model_file), <span class="at">sep=</span><span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<section id="model-is-compiled-as-needed-on-instantiation" class="level4">
-<h4 class="anchored" data-anchor-id="model-is-compiled-as-needed-on-instantiation">Model is compiled (as needed) on instantiation</h4>
-<p><strong>Python</strong></p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>pois_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>poisson_model_file)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<p><strong>R</strong></p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>pois_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span>poisson_model_file)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>pois_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span>poisson_model_file)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="run-the-nuts-hmc-sampler" class="level4">
-<h4 class="anchored" data-anchor-id="run-the-nuts-hmc-sampler">Run the NUTS-HMC sampler</h4>
+<section id="run-the-nuts-hmc-sampler" class="level3">
+<h3 class="anchored" data-anchor-id="run-the-nuts-hmc-sampler">Run the NUTS-HMC sampler</h3>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>pois_fit <span class="op">=</span> pois_mod.sample(data<span class="op">=</span>pois_data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>pois_fit <span class="op">=</span> pois_mod.sample(data<span class="op">=</span>pois_data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>pois_fit <span class="ot">=</span> pois_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>pois_data, <span class="at">parallel_chains=</span>cores)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>pois_fit <span class="ot">=</span> pois_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>pois_data, <span class="at">parallel_chains=</span>cores, <span class="at">refresh=</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="summarize-the-results" class="level4">
-<h4 class="anchored" data-anchor-id="summarize-the-results">Summarize the results</h4>
+<section id="summarize-the-results" class="level3">
+<h3 class="anchored" data-anchor-id="summarize-the-results">Summarize the results</h3>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>pois_fit_summary <span class="op">=</span> pois_fit.summary()</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>pois_fit_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>pois_fit_summary <span class="op">=</span> pois_fit.summary()</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>pois_fit_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>pois_fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>pois_fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 </section>
@@ -3788,64 +3847,60 @@ color: var(--quarto-text-muted);
 <li><p>If the regression has an intercept term, in the <code>generated quantities</code> block, adjust for this by adding back the dot-product of the mean values of each column and the regression coefficient vector to it.</p></li>
 </ol>
 <p>There are the key changes / additions to the base model</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> {</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">// no change </span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">transformed data</span> {</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">// center continuous predictors </span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vector</span>[K] means_xs;  <span class="co">// column means of xs before centering</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">matrix</span>[N, K] xs_centered;  <span class="co">// centered version of xs</span></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="dv">1</span>:K) {</span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    means_xs[k] = mean(xs[, k]);</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    xs_centered[, k] = xs[, k] - means_xs[k];</span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="kw">parameters</span> {</span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>  <span class="co">// no change </span></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="kw">model</span> {</span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  y ~ poisson_log(log_E + beta0 + xs_centered * betas);   <span class="co">// centered data</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  <span class="co">// priors same</span></span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="kw">generated quantities</span> {</span>
-<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> beta_intercept = beta0 - dot_product(means_xs, betas);  <span class="co">// adjust intercept</span></span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>  <span class="co">// compute log_lik, y_rep </span></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>  {</span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>    <span class="dt">vector</span>[N] eta = log_E + beta0 + xs_centered * betas;   <span class="co">// centered data</span></span>
-<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>    <span class="co">//  ..</span></span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> {</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">// no change </span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="kw">transformed data</span> {</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">// center continuous predictors </span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vector</span>[K] means_xs;  <span class="co">// column means of xs before centering</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">matrix</span>[N, K] xs_centered;  <span class="co">// centered version of xs</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="dv">1</span>:K) {</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    means_xs[k] = mean(xs[, k]);</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    xs_centered[, k] = xs[, k] - means_xs[k];</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="kw">parameters</span> {</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  <span class="co">// no change </span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="kw">model</span> {</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>  y ~ poisson_log(log_E + beta0 + xs_centered * betas);   <span class="co">// centered data</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>  <span class="co">// priors same</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="kw">generated quantities</span> {</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> beta_intercept = beta0 - dot_product(means_xs, betas);  <span class="co">// adjust intercept</span></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>  <span class="co">// compute y_rep and log_lik using xs_centered (as before)</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>pois_xc_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>os.path.join(</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_ctr_preds.stan&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>pois_xc_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>os.path.join(</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_ctr_preds.stan&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>pois_xc_fit <span class="op">=</span> pois_xc_mod.sample(data<span class="op">=</span>pois_data)  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>pois_xc_fit <span class="op">=</span> pois_xc_mod.sample(data<span class="op">=</span>pois_data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>pois_xc_summary <span class="op">=</span> pois_xc_fit.summary()</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>pois_xc_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>pois_xc_summary <span class="op">=</span> pois_xc_fit.summary()</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>pois_xc_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>pois_xc_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span><span class="fu">file.path</span>(</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_ctr_preds.stan&#39;</span>)) </span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>pois_xc_fit <span class="ot">=</span> pois_xc_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>pois_data, <span class="at">parallel_chains=</span>cores)</span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>pois_xc_fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>pois_xc_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span><span class="fu">file.path</span>(</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_ctr_preds.stan&#39;</span>)) </span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>pois_xc_fit <span class="ot">=</span> pois_xc_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>pois_data, <span class="at">parallel_chains=</span>cores, <span class="at">refresh=</span><span class="dv">0</span>)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>pois_xc_fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>How do the samples differ?</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;data matrix original scales&quot;</span>)   </span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>pois_fit_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;data matrix original scales&quot;</span>)   </span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>pois_fit_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">&quot;data matrix raw&quot;</span>)   </span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>pois_fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">&quot;data matrix raw&quot;</span>)   </span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>pois_fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="predictor-data-scales" class="level2">
@@ -3902,126 +3957,98 @@ color: var(--quarto-text-muted);
 <p>In the previous steps, the predictor variables <code>med_hh_inc</code> and <code>traffic</code> were log-transformed. What happens if we just use the raw data values?</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>design_vars <span class="op">=</span> np.array([<span class="st">&#39;pct_pubtransit&#39;</span>,<span class="st">&#39;med_hh_inc&#39;</span>, <span class="st">&#39;traffic&#39;</span>, <span class="st">&#39;frag_index&#39;</span>])</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>design_mat_2 <span class="op">=</span> nyc_geodata[design_vars].to_numpy()</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>pois_data_2 <span class="op">=</span> {<span class="st">&quot;N&quot;</span>:nyc_geodata.shape[<span class="dv">0</span>],</span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;y&quot;</span>:nyc_geodata[<span class="st">&#39;count&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;E&quot;</span>:nyc_geodata[<span class="st">&#39;kid_pop&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;K&quot;</span>:<span class="dv">4</span>,</span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;xs&quot;</span>:design_mat_2 }</span>
-<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;log income, traffic</span><span class="ch">\n</span><span class="st">&quot;</span>, pd.DataFrame(design_mat).describe())</span>
-<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;raw data</span><span class="ch">\n</span><span class="st">&quot;</span>, pd.DataFrame(design_mat_2).describe())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>design_vars <span class="op">=</span> np.array([<span class="st">&#39;pct_pubtransit&#39;</span>,<span class="st">&#39;med_hh_inc&#39;</span>, <span class="st">&#39;traffic&#39;</span>, <span class="st">&#39;frag_index&#39;</span>])</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>design_mat_2 <span class="op">=</span> nyc_geodata[design_vars].to_numpy()</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>pois_data_2 <span class="op">=</span> {<span class="st">&quot;N&quot;</span>:nyc_geodata.shape[<span class="dv">0</span>],</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;y&quot;</span>:nyc_geodata[<span class="st">&#39;count&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;E&quot;</span>:nyc_geodata[<span class="st">&#39;kid_pop&#39;</span>].astype(<span class="st">&#39;int&#39;</span>),</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;K&quot;</span>:<span class="dv">4</span>,</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;xs&quot;</span>:design_mat_2 }</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;log income, traffic</span><span class="ch">\n</span><span class="st">&quot;</span>, pd.DataFrame(design_mat).describe())</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;raw data</span><span class="ch">\n</span><span class="st">&quot;</span>, pd.DataFrame(design_mat_2).describe())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>design_mat_2 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(nyc_geodata) <span class="sc">%&gt;%</span></span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pct_pubtransit, med_hh_inc, traffic, frag_index)</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>pois_data_2 <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">N =</span> <span class="fu">nrow</span>(nyc_geodata),</span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">as.integer</span>(nyc_geodata<span class="sc">$</span>count),</span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">E =</span> <span class="fu">as.integer</span>(nyc_geodata<span class="sc">$</span>kid_pop),</span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">K =</span> <span class="dv">4</span>,</span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">xs =</span> design_mat_2</span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">summary</span>(design_mat))</span>
-<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">summary</span>(design_mat_2))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>design_mat_2 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(nyc_geodata) <span class="sc">%&gt;%</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pct_pubtransit, med_hh_inc, traffic, frag_index)</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>pois_data_2 <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">N =</span> <span class="fu">nrow</span>(nyc_geodata),</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">as.integer</span>(nyc_geodata<span class="sc">$</span>count),</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">E =</span> <span class="fu">as.integer</span>(nyc_geodata<span class="sc">$</span>kid_pop),</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">K =</span> <span class="dv">4</span>,</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">xs =</span> design_mat_2</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">summary</span>(design_mat))</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">summary</span>(design_mat_2))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Run the base model on this data.</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>pois_fit_2 <span class="op">=</span> pois_mod.sample(data<span class="op">=</span>pois_data_2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>pois_fit_2 <span class="op">=</span> pois_mod.sample(data<span class="op">=</span>pois_data_2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>pois_summary_2 <span class="op">=</span> pois_fit_2.summary()</span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>pois_summary_2.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>pois_summary_2 <span class="op">=</span> pois_fit_2.summary()</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>pois_summary_2.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>pois_fit_2 <span class="ot">=</span> pois_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>pois_data_2, <span class="at">parallel_chains=</span>cores)</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>pois_fit_2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>pois_fit_2 <span class="ot">=</span> pois_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>pois_data_2, <span class="at">parallel_chains=</span>cores, <span class="at">refresh=</span><span class="dv">0</span>)</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>pois_fit_2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The model that transforms the data matrix fails for the same fundamental reason: the regression component <code>xs * betas</code> or <code>xs_centered * betas</code> cannot be computed, it either overflows or underflow because the predictors are on wildly different scales. (Transforming the data fails faster because it both both <code>traffic</code> and <code>med_hh_inc</code> include large negative values - this underflows consistently.)</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># uncomment next line, sampler will fail</span></span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="co"># pois_xc_mod.sample(data=pois_data_2)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># uncomment next line, sampler will fail</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="co"># pois_xc_mod.sample(data=pois_data_2)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># uncomment next line, sampler will fail</span></span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="co"># pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># uncomment next line, sampler will fail</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="co"># pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores, refresh=0)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<section id="takeaway" class="level4">
-<h4 class="anchored" data-anchor-id="takeaway">Takeaway</h4>
-<p>To improve model fit and processing speed, predictors should be on the same scale.</p>
-<p><em>But</em> remember to account for any rescaling when trying to interpret the fitted coefficients!</p>
 </section>
+<section id="best-practices" class="level2">
+<h2 class="anchored" data-anchor-id="best-practices">Best Practices</h2>
+<p><strong>Rescale predictors</strong></p>
+<p>Ensure that all columns of the design matrix (predictor variables) are on a similar scale to improve model convergence and interpretation. Large differences in scale can lead to inefficient sampling and numerical instability.</p>
+<p><em>But</em> remember to account for any rescaling when trying to interpret the fitted coefficients.</p>
+<p><strong>Zero-center predictors</strong></p>
+<p>Use the <code>transformed data</code> block to zero-center predictor variables and then account for the resulting effect on the location of the intercept in the <code>generated quantities</code> block.</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="dt">real</span> beta_intercept = beta0 - dot_product(means_xs, betas);</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>Make incremental changes, save your work</strong></p>
+<p>We started with an extremely simple model and thus far, have only looked at how different transforms of the input data affect the sampler speed and sample size. Each variant of the model saved in its own file, with a minimally informative name. However, having established the importance of zero-centered, properly scaled data, we will use the <code>pois_xc.stan</code> model as the base model going forward.</p>
 </section>
-<section id="model-checking-the-posterior-predictive-check" class="level2">
-<h2 class="anchored" data-anchor-id="model-checking-the-posterior-predictive-check">Model Checking: The Posterior Predictive Check</h2>
-<p>From the <a href="https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#simulating-from-the-posterior-predictive-distribution">Stan Users Guide</a></p>
-<blockquote class="blockquote">
-<p>Posterior predictive checks are a way of measuring whether a model does a good job of capturing relevant aspects of the data, such as means, standard deviations, and quantiles.</p>
-</blockquote>
-<blockquote class="blockquote">
-<p>The posterior predictive distribution is the distribution over new observations given previous observations. It’s predictive in the sense that it’s predicting behavior on new data that is not part of the training set. It’s posterior in that everything is conditioned on observed data <span class="math inline">\(y\)</span>.</p>
-</blockquote>
-<blockquote class="blockquote">
-<p>The posterior predictive distribution for replications <span class="math inline">\(y^{\textrm{rep}}\)</span> of the original data set <span class="math inline">\(y\)</span> given model parameters <span class="math inline">\(\theta\)</span> is defined by <span class="math display">\[
-p(y^{\textrm{rep}} \mid y)
-= \int p(y^{\textrm{rep}} \mid \theta)
-\cdot p(\theta \mid y) \, \textrm{d}\theta.
-\]</span></p>
-</blockquote>
-<section id="posterior-predictive-density-overlay-plots" class="level4">
-<h4 class="anchored" data-anchor-id="posterior-predictive-density-overlay-plots">Posterior predictive density overlay plots</h4>
-<p>The variable <code>y_rep</code> is a <em>simulated</em> dataset based on the observed data and the estimated parameters, using Stan’s PRNG function <code>poisson_log_rng</code>, thus the sample contains a set of random datasets all conditioned on the observed data (nyc_geodata[‘count’]).</p>
-<p>The posterior predictive density overlay plot compares the distribution of the observed data to the distribution of some of the simulated datasets (<code>y_rep</code>).</p>
-<p>In R, this is available from the <a href="https://mc-stan.org/bayesplot">bayesplot</a> package as function <a href="https://mc-stan.org/bayesplot/articles/graphical-ppcs.html#ppc_dens_overlay"><code>ppc_dens_overlay</code></a>.</p>
-<p><strong>R</strong></p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>y_rep <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_xc_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(nyc_geodata<span class="sc">$</span>count, y_rep) <span class="sc">+</span></span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: Poisson model&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<p>To create the equivalent plot in Python:</p>
-<ol type="1">
-<li>select a random set of draws from the output.</li>
-<li>create a ggplot plot</li>
-<li>add to the plot the density each simulated dataset (thin line, light color, relatively transparent)</li>
-<li>add to the plot the density of the observed data (heavy line, dark color)</li>
-</ol>
+<section id="posterior-predictive-checks" class="level2">
+<h2 class="anchored" data-anchor-id="posterior-predictive-checks">Posterior Predictive Checks</h2>
+<p>The generated quantities variable <code>y_rep</code> is used to run posterior predictive checks. If a model captures the data well, summary statistics such as sample mean and standard deviation of <code>y</code> and <code>y_rep</code> should have similar values. In particular, we expect that the observed <code>y</code> values fall within the 50% central interval of their corresponding <code>y_rep</code> sample at least 50% of the time.</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>y_rep <span class="op">=</span> pois_xc_fit.stan_variable(<span class="st">&#39;y_rep&#39;</span>)</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co"># select random sample</span></span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>y_rep_sample <span class="op">=</span> pd.DataFrame(y_rep).sample(n<span class="op">=</span><span class="dv">50</span>).reset_index(drop<span class="op">=</span><span class="va">True</span>).T</span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="co"># create ggplot</span></span>
-<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>pois_ppc <span class="op">=</span> p9.ggplot() <span class="op">+</span> p9.ggtitle(<span class="st">&quot;Posterior Predictive Check: Poisson model&quot;</span>) </span>
-<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a><span class="co"># add simulated dataset densities</span></span>
-<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">50</span>):</span>
-<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>    pois_ppc <span class="op">=</span> (</span>
-<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>        pois_ppc</span>
-<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> p9.stat_density(mapping<span class="op">=</span>p9.aes(x<span class="op">=</span>y_rep_sample[i]),</span>
-<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>                          geom<span class="op">=</span><span class="st">&#39;line&#39;</span>, color<span class="op">=</span><span class="st">&#39;lightblue&#39;</span>, alpha<span class="op">=</span><span class="fl">0.4</span>)</span>
-<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a><span class="co"># add observed data density</span></span>
-<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>pois_ppc <span class="op">=</span> (</span>
-<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>    pois_ppc</span>
-<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> p9.stat_density(data<span class="op">=</span>nyc_geodata, mapping<span class="op">=</span>p9.aes(x<span class="op">=</span><span class="st">&#39;count&#39;</span>),</span>
-<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>                      geom<span class="op">=</span><span class="st">&#39;line&#39;</span>, color<span class="op">=</span><span class="st">&#39;darkblue&#39;</span>, size<span class="op">=</span><span class="fl">1.1</span>)</span>
-<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> p9.theme(figure_size<span class="op">=</span>(<span class="dv">6</span>,<span class="dv">4</span>))</span>
-<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>pois_ppc</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>y_rep_pois <span class="op">=</span> pois_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_pois, pois_data[<span class="st">&#39;y&#39;</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><strong>R</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>y_rep_pois <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_central_interval</span>(y_rep_pois, pois_data<span class="sc">$</span>y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="posterior-predictive-plots---y-vs-y_rep" class="level3">
+<h3 class="anchored" data-anchor-id="posterior-predictive-plots---y-vs-y_rep">Posterior predictive plots - <code>y</code> vs <code>y_rep</code></h3>
+<p>To visualize the above summary we create a plot which compares the raw count data <code>y</code> to the range of replicates for that value. First we sort the observations in ascending order; this ordering is used to lay out the values on the x-axis. For each observation, we plot the raw count data <code>y</code> as a point (dark blue), the central 50% interval values of <code>y_rep</code> in orange, and the entire range of <code>y_rep</code> in grey. We have written a series of helper functions in Python and R to set up this visualization, function`ppc_y_yrep_overlay’</p>
+<p><strong>Python</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>ppc_plot <span class="op">=</span> ppc_y_yrep_overlay(y_rep_pois, pois_data[<span class="st">&#39;y&#39;</span>],</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>                                <span class="st">&#39;Poisson model PPC</span><span class="ch">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50</span><span class="sc">% c</span><span class="st">entral interval, grey full extent)&#39;</span>)</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>ppc_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><strong>R</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_y_yrep_overlay</span>(y_rep_pois, pois_data<span class="sc">$</span>y,</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>                     <span class="st">&#39;Poisson model PPC</span><span class="sc">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50% central interval, grey full extent)&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 </section>
@@ -4029,150 +4056,120 @@ p(y^{\textrm{rep}} \mid y)
 <h2 class="anchored" data-anchor-id="refinement-add-random-effects">Refinement: Add random effects</h2>
 <p>The Poisson distribution provides a single parameter <span class="math inline">\(\lambda\)</span>, which is both mean and variance. As the above plots show, the data is overdispersed - the observed variance is greater than expected. To improve the model fit, we can add an ordinary random-effects component - this will account for per-tract heterogeneity. (Not to get head of ourselves, but this is one component in the BYM model).</p>
 <p>There are the key changes / additions to the base model</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> {</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">// no change </span></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="kw">transformed data</span> {</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">// no change, (center continuous predictors)</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="kw">parameters</span> {</span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> beta0; <span class="co">// intercept</span></span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vector</span>[K] betas; <span class="co">// covariates</span></span>
-<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vector</span>[N] theta; <span class="co">// heterogeneous random effects</span></span>
-<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; sigma; <span class="co">// random effects variance </span></span>
-<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a><span class="kw">model</span> {</span>
-<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>  y ~ poisson_log(log_E + beta0 + xs_centered * betas + theta * sigma);</span>
-<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>  beta0 ~ std_normal();</span>
-<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>  betas ~ std_normal();</span>
-<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>  theta ~ std_normal();</span>
-<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>  sigma ~ normal(<span class="dv">0</span>, <span class="dv">5</span>);</span>
-<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a><span class="kw">generated quantities</span> {</span>
-<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a>  <span class="co">// compute log_lik, y_rep </span></span>
-<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>  {</span>
-<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a>    <span class="dt">vector</span>[N] eta = log_E + beta0 + xs_centered * betas + theta * sigma;</span>
-<span id="cb31-24"><a href="#cb31-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ..</span></span>
-<span id="cb31-25"><a href="#cb31-25" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb31-26"><a href="#cb31-26" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb38"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> {</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">// no change </span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="kw">transformed data</span> {</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">// no change, (center continuous predictors)</span></span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a><span class="kw">parameters</span> {</span>
+<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> beta0; <span class="co">// intercept</span></span>
+<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vector</span>[K] betas; <span class="co">// covariates</span></span>
+<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vector</span>[N] theta; <span class="co">// heterogeneous random effects</span></span>
+<span id="cb38-11"><a href="#cb38-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; sigma; <span class="co">// random effects variance </span></span>
+<span id="cb38-12"><a href="#cb38-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a><span class="kw">model</span> {</span>
+<span id="cb38-14"><a href="#cb38-14" aria-hidden="true" tabindex="-1"></a>  y ~ poisson_log(log_E + beta0 + xs_centered * betas + theta * sigma);</span>
+<span id="cb38-15"><a href="#cb38-15" aria-hidden="true" tabindex="-1"></a>  beta0 ~ std_normal();</span>
+<span id="cb38-16"><a href="#cb38-16" aria-hidden="true" tabindex="-1"></a>  betas ~ std_normal();</span>
+<span id="cb38-17"><a href="#cb38-17" aria-hidden="true" tabindex="-1"></a>  theta ~ std_normal();</span>
+<span id="cb38-18"><a href="#cb38-18" aria-hidden="true" tabindex="-1"></a>  sigma ~ normal(<span class="dv">0</span>, <span class="dv">5</span>);</span>
+<span id="cb38-19"><a href="#cb38-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb38-20"><a href="#cb38-20" aria-hidden="true" tabindex="-1"></a><span class="kw">generated quantities</span> {</span>
+<span id="cb38-21"><a href="#cb38-21" aria-hidden="true" tabindex="-1"></a>  <span class="co">// compute log_lik, y_rep </span></span>
+<span id="cb38-22"><a href="#cb38-22" aria-hidden="true" tabindex="-1"></a>  {</span>
+<span id="cb38-23"><a href="#cb38-23" aria-hidden="true" tabindex="-1"></a>    <span class="dt">vector</span>[N] eta = log_E + beta0 + xs_centered * betas + theta * sigma;</span>
+<span id="cb38-24"><a href="#cb38-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ..</span></span>
+<span id="cb38-25"><a href="#cb38-25" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb38-26"><a href="#cb38-26" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>pois_re_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>os.path.join(</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_re.stan&#39;</span>))</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>pois_re_fit <span class="op">=</span> pois_re_mod.sample(data<span class="op">=</span>pois_data)</span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>pois_re_summary <span class="op">=</span> pois_re_fit.summary()</span>
-<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>pois_re_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>pois_re_mod <span class="op">=</span> CmdStanModel(stan_file<span class="op">=</span>os.path.join(</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_re.stan&#39;</span>))</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>pois_re_fit <span class="op">=</span> pois_re_mod.sample(data<span class="op">=</span>pois_data)</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>pois_re_summary <span class="op">=</span> pois_re_fit.summary()</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>pois_re_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>pois_re_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span><span class="fu">file.path</span>(</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_re.stan&#39;</span>)) </span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>pois_re_fit <span class="ot">=</span> pois_re_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>pois_data, <span class="at">parallel_chains=</span>cores)</span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>pois_re_fit </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>pois_re_mod <span class="ot">=</span> <span class="fu">cmdstan_model</span>(<span class="at">stan_file=</span><span class="fu">file.path</span>(</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;stan&#39;</span>, <span class="st">&#39;poisson_re.stan&#39;</span>)) </span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>pois_re_fit <span class="ot">=</span> pois_re_mod<span class="sc">$</span><span class="fu">sample</span>(<span class="at">data=</span>pois_data, <span class="at">parallel_chains=</span>cores, <span class="at">refresh=</span><span class="dv">0</span>)</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>pois_re_fit </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>How do the samples differ from the base model?</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>pois_xc_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>pois_xc_summary.<span class="bu">round</span>(<span class="dv">2</span>).loc[</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>  [<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;beta0&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>pois_xc_fit </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>pois_xc_fit </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="re-model" class="level4">
+<h4 class="anchored" data-anchor-id="re-model">RE model</h4>
+<p><strong>Python</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>y_rep_re <span class="op">=</span> pois_re_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_re, pois_data[<span class="st">&#39;y&#39;</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><strong>R</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>y_rep_re <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_re_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_central_interval</span>(y_rep_re, pois_data<span class="sc">$</span>y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Run the PPC plots</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>y_rep_re <span class="op">=</span> pois_re_fit.stan_variable(<span class="st">&#39;y_rep&#39;</span>)</span>
-<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="co"># select random sample</span></span>
-<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>y_rep_re_sample <span class="op">=</span> pd.DataFrame(y_rep_re).sample(n<span class="op">=</span><span class="dv">50</span>).reset_index(drop<span class="op">=</span><span class="va">True</span>).T</span>
-<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a><span class="co"># create ggplot</span></span>
-<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>pois_re_ppc <span class="op">=</span> p9.ggplot() <span class="op">+</span> p9.ggtitle(<span class="st">&quot;Posterior Predictive Check: Poisson + RE model&quot;</span>) </span>
-<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a><span class="co"># add simulated dataset densities</span></span>
-<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">50</span>):</span>
-<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>    pois_re_ppc <span class="op">=</span> (</span>
-<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>        pois_re_ppc</span>
-<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> p9.stat_density(mapping<span class="op">=</span>p9.aes(x<span class="op">=</span>y_rep_re_sample[i]),</span>
-<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>                          geom<span class="op">=</span><span class="st">&#39;line&#39;</span>, color<span class="op">=</span><span class="st">&#39;lightblue&#39;</span>, alpha<span class="op">=</span><span class="fl">0.4</span>)</span>
-<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-17"><a href="#cb36-17" aria-hidden="true" tabindex="-1"></a><span class="co"># add observed data density</span></span>
-<span id="cb36-18"><a href="#cb36-18" aria-hidden="true" tabindex="-1"></a>pois_re_ppc <span class="op">=</span> (</span>
-<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a>    pois_re_ppc</span>
-<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> p9.stat_density(data<span class="op">=</span>nyc_geodata, mapping<span class="op">=</span>p9.aes(x<span class="op">=</span><span class="st">&#39;count&#39;</span>),</span>
-<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a>                      geom<span class="op">=</span><span class="st">&#39;line&#39;</span>, color<span class="op">=</span><span class="st">&#39;darkblue&#39;</span>, size<span class="op">=</span><span class="fl">1.1</span>)</span>
-<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> p9.theme(figure_size<span class="op">=</span>(<span class="dv">6</span>,<span class="dv">4</span>))</span>
-<span id="cb36-23"><a href="#cb36-23" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb36-24"><a href="#cb36-24" aria-hidden="true" tabindex="-1"></a>pois_re_ppc</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>pois_ppc</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>ppc_plot <span class="op">=</span> ppc_y_yrep_overlay(y_rep_re, pois_data[<span class="st">&#39;y&#39;</span>],</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>                                <span class="st">&#39;Poisson model</span><span class="ch">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50</span><span class="sc">% c</span><span class="st">entral interval, grey full extent)&#39;</span>)</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>ppc_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>y_rep_re <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_re_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(nyc_geodata<span class="sc">$</span>count, y_rep_re) <span class="sc">+</span></span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: Poisson + RE Model&quot;</span>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_y_yrep_overlay</span>(y_rep_re, pois_data<span class="sc">$</span>y,</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>                     <span class="st">&#39;RE model PPC</span><span class="sc">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50% central interval, grey full extent)&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_dens_overlay</span>(nyc_geodata<span class="sc">$</span>count, y_rep) <span class="sc">+</span></span>
-<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">ggtitle</span>(<span class="st">&quot;Posterior Predictive Check: Poisson Model&quot;</span>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
+</section>
 </section>
 <section id="model-comparison" class="level2">
 <h2 class="anchored" data-anchor-id="model-comparison">Model Comparison</h2>
-<section id="leave-one-out-cross-validation-loo" class="level4">
-<h4 class="anchored" data-anchor-id="leave-one-out-cross-validation-loo">Leave-one-out cross-validation (LOO)</h4>
-<p>The <a href="https://mc-stan.org/loo/">loo package</a> provides an implementation of the algorithm presented in</p>
-<ul>
-<li>Vehtari, A., Gelman, A. &amp; Gabry, J. Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC. Stat Comput 27, 1413–1432 (2017). https://doi.org/10.1007/s11222-016-9696-4</li>
-<li>Vehtari, A.,Simpson, D.P., Gelman, A., Yao, Y., &amp; Gabry, J. Pareto Smoothed Importance Sampling, arxiv, 2024. https://arxiv.org/abs/1507.02646</li>
-</ul>
-<p>Pareto-smoothed importance sampling (PSIS) provides stabilized effective sample size estimates, Monte Carlo error estimates, and convergence diagnostics and provide a way to efficiently perform leave-one-out (LOO) cross-valiation, which allows us to compare predictive errors between two models.</p>
-<p>In R, we can do model comparison using the <code>loo</code> package.</p>
+<p>In addition to comparing the model estimates and effective sample size (per second), we can use LOO-CV to evaluate how well the model will perform on unseen data. In R, we use the <code>loo</code> package.</p>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>loo_xc_pois <span class="ot">&lt;-</span> <span class="fu">loo</span>(pois_xc_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;log_lik&quot;</span>), <span class="at">save_psis =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>loo_re_pois <span class="ot">&lt;-</span> <span class="fu">loo</span>(pois_re_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;log_lik&quot;</span>), <span class="at">save_psis =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="fu">loo_compare</span>(loo_xc_pois, loo_re_pois)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>loo_xc_pois <span class="ot">&lt;-</span> <span class="fu">loo</span>(pois_xc_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;log_lik&quot;</span>), <span class="at">save_psis =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>loo_re_pois <span class="ot">&lt;-</span> <span class="fu">loo</span>(pois_re_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;log_lik&quot;</span>), <span class="at">save_psis =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a><span class="fu">loo_compare</span>(loo_xc_pois, loo_re_pois)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>In Python, we can do this using <a href="https://python.arviz.org/en/stable/">ArviZ</a>.</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co">## model comparison using loo from Arviz</span></span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> arviz <span class="im">as</span> az</span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>idata_pois_xc <span class="op">=</span> az.from_cmdstanpy(</span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>    pois_xc_fit,</span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
-<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
-<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: pois_data[<span class="st">&#39;y&#39;</span>]}</span>
-<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>idata_pois_xc</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<p>ArviZ provides the equivalent functions of those in R packages <code>bayesplot</code> and <code>loo</code>.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>az.plot_ppc(idata_pois_xc, data_pairs<span class="op">=</span>{<span class="st">&quot;y&quot;</span>:<span class="st">&quot;y_rep&quot;</span>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="co">## model comparison using loo from Arviz</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> arviz <span class="im">as</span> az</span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>idata_pois_xc <span class="op">=</span> az.from_cmdstanpy(</span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>    pois_xc_fit,</span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: pois_data[<span class="st">&#39;y&#39;</span>]}</span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a>idata_pois_xc</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>idata_pois_re <span class="op">=</span> az.from_cmdstanpy(</span>
-<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>    pois_re_fit,</span>
-<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
-<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
-<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
-<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: pois_data[<span class="st">&#39;y&#39;</span>]}</span>
-<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb43-8"><a href="#cb43-8" aria-hidden="true" tabindex="-1"></a>az.plot_ppc(idata_pois_re, data_pairs<span class="op">=</span>{<span class="st">&quot;y&quot;</span>:<span class="st">&quot;y_rep&quot;</span>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>idata_pois_re <span class="op">=</span> az.from_cmdstanpy(</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>    pois_re_fit,</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>    posterior_predictive<span class="op">=</span><span class="st">&quot;y_rep&quot;</span>,</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>    dims<span class="op">=</span>{<span class="st">&quot;betas&quot;</span>: [<span class="st">&quot;covariates&quot;</span>]},</span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>    coords<span class="op">=</span>{<span class="st">&quot;covariates&quot;</span>: design_vars},</span>
+<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>    observed_data<span class="op">=</span>{<span class="st">&quot;y&quot;</span>: pois_data[<span class="st">&#39;y&#39;</span>]}</span>
+<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-9"><a href="#cb49-9" aria-hidden="true" tabindex="-1"></a>az.compare({<span class="st">&quot;poisson&quot;</span>:idata_pois_xc, <span class="st">&quot;poisson_re&quot;</span>:idata_pois_re})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>az.compare({<span class="st">&quot;poisson&quot;</span>:idata_pois_xc, <span class="st">&quot;poisson_re&quot;</span>:idata_pois_re})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-</section>
+<p>While the Poisson + random effects model effectively accounts for the overdispersion, it fails to distinguish between variance due to the spatial structure of the data and purely heterogenous variance. The following notebooks show how to account for both.</p>
 </section>
 
 </main>

@@ -30,7 +30,7 @@ parameters {
   real<lower = 0> sigma;  // scale of combined effects
 }
 transformed parameters {
-  vector[N] gamma = (sqrt(1 - rho) * theta + sqrt(rho * inv(tau)) * phi);  // BYM2
+  vector[N] gamma = sqrt(1 - rho) * theta + sqrt(rho * inv(tau)) * phi;  // BYM2
 }
 model {
   y ~ poisson_log(log_E + beta0 + xs_centered * betas + gamma * sigma);
@@ -46,16 +46,6 @@ generated quantities {
   array[N] int y_rep;
   {
     vector[N] eta = log_E + beta0 + xs_centered * betas + gamma * sigma;
-    if (max(eta) > 26) {
-      // avoid overflow in poisson_log_rng
-      print("max eta too big: ", max(eta));
-      for (n in 1:N) {
-	y_rep[n] = -1;
-      }
-    } else {
-      for (n in 1:N) {
-	y_rep[n] = poisson_log_rng(eta[n]);
-      }
-    }
+    y_rep = max(eta) < 26 ? poisson_log_rng(eta) : rep_array(-1, N);
   }
 }

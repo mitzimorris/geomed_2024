@@ -30,18 +30,9 @@ generated quantities {
   vector[N] log_lik;
   {
     vector[N] eta = log_E + beta0 + xs_centered * betas;   // centered data
-    if (max(eta) > 26) {
-      // avoid overflow in poisson_log_rng
-      print("max eta too big: ", max(eta));
-      for (n in 1:N) {
-        y_rep[n] = -1;
-        log_lik[n] = -1;
-      }
-    } else {
-      for (n in 1:N) {
-        y_rep[n] = poisson_log_rng(eta[n]);
-        log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);
-      }
+    y_rep = max(eta) < 26 ? poisson_log_rng(eta) : rep_array(-1, N);
+    for (n in 1:N) {
+      log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);
     }
   }
 }

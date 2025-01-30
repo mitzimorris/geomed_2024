@@ -45,30 +45,10 @@ import arviz as az
 
 from cmdstanpy import CmdStanModel, cmdstan_path, cmdstan_version
 
-# suppress plotnine warnings
 import warnings
 warnings.filterwarnings('ignore')
-
-# setup plotnine look and feel
-p9.theme_set(
-  p9.theme_grey() + 
-  p9.theme(text=p9.element_text(size=10),
-        plot_title=p9.element_text(size=14),
-        axis_title_x=p9.element_text(size=12),
-        axis_title_y=p9.element_text(size=12),
-        axis_text_x=p9.element_text(size=8),
-        axis_text_y=p9.element_text(size=8)
-       )
-)
-xlabels_90 = p9.theme(axis_text_x = p9.element_text(angle=90, hjust=1))
-
-map_theme =  p9.theme(figure_size=(7,6),
-                 axis_text_x=p9.element_blank(),
-                 axis_ticks_x=p9.element_blank(),
-                 axis_text_y=p9.element_blank(),
-                 axis_ticks_y=p9.element_blank())
+from utils_dataviz import *
 ```
-
 
 **R**
 ```{r}
@@ -82,11 +62,153 @@ library(bayesplot)
 library(loo)
 library(parallel)
 cores = floor(parallel::detectCores() / 2)
+source("utils_dataviz.R")
 ```
 
+## Base Model:  `poisson.stan`
 
+This file is in directory `stan/poisson.stan`.
 
-#### Load the NYC study data 
+**Python**
+```{python}
+poisson_model_file = os.path.join('stan', 'poisson.stan')
+
+with open(poisson_model_file, 'r') as file:
+    contents = file.read()
+    print(contents)
+```
+
+**R**
+```{r}
+poisson_model_file = file.path('stan', 'poisson.stan')
+cat(readLines(poisson_model_file), sep="\n")
+```
+
+## Model Checking and Model Comparison
+
+The generated quantities block of the base model contains the following statements:
+
+```stan
+generated quantities {
+  array[N] int y_rep;
+  vector[N] log_lik;
+  {
+    vector[N] eta = log_E + beta0 + xs * betas;
+    y_rep = max(eta) < 26 ? poisson_log_rng(eta) : rep_array(-1, N);
+    for (n in 1:N) {
+      log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);
+    }
+  }
+}
+```
+
+The quantities `y_rep` and `log_lik` are used run
+posterior predictive checks and leave-one-out cross-validation (LOO-CV), respectively.
+
+### The Posterior Predictive Check 
+
+Posterior predictive checks tests how well the fitted model captures basic features of the data.
+The base model, and all models in these notebooks, use the `generated quantities` block
+to declare and populate vector `y_rep` ("replicated data"),
+which is used for
+[posterior predictive checking](https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#simulating-from-the-posterior-predictive-distribution),
+as described in the Stan User's Guide.
+
+>Posterior predictive checks are a way of measuring whether a model
+does a good job of capturing relevant aspects of the data, such as
+means, standard deviations, and quantiles.
+
+>The posterior predictive distribution is the distribution over new
+observations given previous observations.  It's predictive in the
+sense that it's predicting behavior on new data that is not part of
+the training set.  It's posterior in that everything is conditioned on
+observed data $y$.
+
+>The posterior predictive distribution for replications
+$y^{\textrm{rep}}$ of the original data set $y$ given model parameters
+$\theta$ is defined by
+$$
+p(y^{\textrm{rep}} \mid y)
+= \int p(y^{\textrm{rep}} \mid \theta)
+       \cdot p(\theta \mid y) \, \textrm{d}\theta.
+$$
+
+This is computed by the following statements:
+
+```stan
+  array[N] int y_rep;
+  {
+    vector[N] eta = log_E + beta0 + xs * betas;
+    y_rep = max(eta) < 26 ? poisson_log_rng(eta) : rep_array(-1, N);
+  }
+```
+
+It directly parallels the model block statements of the likelihood:
+
+```stan
+  y ~ poisson_log(log_E + beta0 + xs * betas);
+```
+
+Because the poisson_log_rng function parameter must be less than $30 \log 2$,
+we first compute this as local variable `eta` (to avoid output overhead), then
+use Stan's ternary operator in tandem with the vectorized
+[`poisson_log_rng`](https://mc-stan.org/docs/functions-reference/unbounded_discrete_distributions.html#poisson-distribution-log-parameterization) function to efficiently populate `y_rep`.
+
+### Leave-one-out cross-validation (LOO)
+
+Posterior predictive checks assess how well the model captures relevant aspects of the observed data.
+Leave-one-out cross-validation (LOO CV) provides a measure how well the model will generalize to
+new, unseen data.
+The [loo package](https://mc-stan.org/loo/) provides an implementation of the algorithm presented in
+
+* Vehtari, A., Gelman, A. & Gabry, J. Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC. Stat Comput 27, 1413–1432 (2017). https://doi.org/10.1007/s11222-016-9696-4
+* Vehtari, A.,Simpson, D.P.,  Gelman, A., Yao, Y., & Gabry, J. Pareto Smoothed Importance Sampling, arxiv, 2024. https://arxiv.org/abs/1507.02646
+
+It simulates what would happen if we refit the model while leaving out each data point, one at a time.
+Since refitting the model repeatedly is too computationally expensive), loo() uses
+Pareto Smoothed Importance Sampling (PSIS) to approximate this process efficiently.
+
+The primary metric from `loo()` is the Expected Log Predictive Density (ELPD)
+which is the log-probability of new data given the model.
+A higher ELPD means better predictive performance.
+However, the scale is relative,
+so the absolute ELPD value is not as important as the difference between ELPD scores
+for different models.
+This can be carried out using the `loo_compare()` function.
+By convention, both functions require that the Stan model outputs
+the generated quantity `log_lik`, which is simply the log likelihood.
+Although the `model` block computes the likelihood, this value is not saved.
+The most efficient way to capture this value is to recompute it in the
+`generated quantities` block, via the following statements.
+
+```stan
+  vector[N] log_lik;
+  {
+    vector[N] eta = log_E + beta0 + xs * betas;
+    for (n in 1:N) {
+      log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);
+    }
+  }
+```
+
+## Model Fitting
+
+### Assemble the input data
+
+The data block of the model declares variables:
+
+- `N` - the number of census tracts
+- `y` - the array of observed outcomes - accidents per tract
+- `E` - the population per tract ("exposure")
+- `K` - the number of predictors
+- `xs` - the N x K data matrix of predictors
+
+The study data and GIS data have been assembled into a single GeoJSON file.
+The dataset we're using is that used in the analysis published in 2019
+[Bayesian Hierarchical Spatial Models: Implementing the Besag York Mollié Model in Stan](https://www.sciencedirect.com/science/article/pii/S1877584518301175).
+The data consists of motor vehicle collisions in New York City,
+as recorded by the NYC Department of Transportation, between the years 2005-2014,
+restricted to collisions involving school age children 5-18 years of age as pedestrians.
 
 **Python**
 ```{python}
@@ -101,18 +223,6 @@ nyc_geodata = st_read("data/nyc_study.geojson")
 names(nyc_geodata)
 table(nyc_geodata$BoroName)
 ```
-
-
-
-#### Assemble the input data
-
-The data block of the model declares variables:
-
-- `N` - the number of census tracts
-- `y` - the array of observed outcomes - accidents per tract
-- `E` - the population per tract ("exposure")
-- `K` - the number of predictors
-- `xs` - the N x K data matrix of predictors
 
 The predictors from the study data are columns: `pct_pubtransit`,`med_hh_inc`, `traffic`, `frag_index`.
 
@@ -147,55 +257,34 @@ pois_data <- list(
 )
 ```
 
-## Base Model:  `poisson.stan`
+### Instantiate the model
 
-This file is in directory `stan/poisson.stan`.
-
-**Python**
-```{python}
-poisson_model_file = os.path.join('stan', 'poisson.stan')
-
-with open(poisson_model_file, 'r') as file:
-    contents = file.read()
-    print(contents)
-```
-
-**R**
-```{r}
-poisson_model_file = file.path('stan', 'poisson.stan')
-cat(readLines(poisson_model_file), sep="\n")
-```
-
-
-
-#### Model is compiled (as needed) on instantiation 
+Creating a `CmdStanModel` object from a `.stan` file
+compiles or recompiles the model, as needed.
 
 **Python**
 ```{python}
 pois_mod = CmdStanModel(stan_file=poisson_model_file)
 ```
 
-
 **R**
 ```{r}
 pois_mod = cmdstan_model(stan_file=poisson_model_file)
 ```
 
-#### Run the NUTS-HMC sampler 
+### Run the NUTS-HMC sampler 
 
 **Python**
 ```{python}
 pois_fit = pois_mod.sample(data=pois_data)
 ```
 
-
 **R**
 ```{r}
-pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores)
+pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores, refresh=0)
 ```
 
-#### Summarize the results
-
+### Summarize the results
 
 **Python**
 ```{python}
@@ -249,11 +338,7 @@ model {
 }
 generated quantities {
   real beta_intercept = beta0 - dot_product(means_xs, betas);  // adjust intercept
-  // compute log_lik, y_rep 
-  {
-    vector[N] eta = log_E + beta0 + xs_centered * betas;   // centered data
-    //  ..
-  }
+  // compute y_rep and log_lik using xs_centered (as before)
 }
 ```
 
@@ -263,7 +348,7 @@ pois_xc_mod = CmdStanModel(stan_file=os.path.join(
   'stan', 'poisson_ctr_preds.stan'))
 ```
 ```{python}
-pois_xc_fit = pois_xc_mod.sample(data=pois_data)  
+pois_xc_fit = pois_xc_mod.sample(data=pois_data)
 ```
 ```{python}
 pois_xc_summary = pois_xc_fit.summary()
@@ -271,17 +356,15 @@ pois_xc_summary.round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
-
 **R**
 ```{r}
 pois_xc_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_ctr_preds.stan')) 
-pois_xc_fit = pois_xc_mod$sample(data=pois_data, parallel_chains=cores)
+pois_xc_fit = pois_xc_mod$sample(data=pois_data, parallel_chains=cores, refresh=0)
 pois_xc_fit
 ```
 
 How do the samples differ?
-
 
 **Python**
 ```{python}
@@ -295,7 +378,6 @@ pois_fit_summary.round(2).loc[
 print("data matrix raw")   
 pois_fit
 ```
-
 
 ## Predictor Data Scales
 
@@ -345,7 +427,6 @@ print(summary(design_mat_2))
 
 Run the base model on this data.
 
-
 **Python**
 ```{python}
 pois_fit_2 = pois_mod.sample(data=pois_data_2)
@@ -356,10 +437,9 @@ pois_summary_2.round(2).loc[
   ['beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
 ```
 
-
 **R**
 ```{r}
-pois_fit_2 = pois_mod$sample(data=pois_data_2, parallel_chains=cores)
+pois_fit_2 = pois_mod$sample(data=pois_data_2, parallel_chains=cores, refresh=0)
 pois_fit_2
 ```
 
@@ -378,88 +458,74 @@ include large negative values - this underflows consistently.)
 **R**
 ```{r}
 # uncomment next line, sampler will fail
-# pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
+# pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores, refresh=0)
 ```
 
-#### Takeaway
+## Best Practices
 
-To improve model fit and processing speed, predictors should be on the same scale.
+**Rescale predictors**
 
-*But* remember to account for any rescaling when trying to interpret the fitted coefficients! 
+Ensure that all columns of the design matrix (predictor variables) are on a similar scale to improve model convergence and interpretation. Large differences in scale can lead to inefficient sampling and numerical instability.
 
-## Model Checking:  The Posterior Predictive Check 
+*But* remember to account for any rescaling when trying to interpret the fitted coefficients.
 
-From the [Stan Users Guide](https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#simulating-from-the-posterior-predictive-distribution)
+**Zero-center predictors**
 
->Posterior predictive checks are a way of measuring whether a model
-does a good job of capturing relevant aspects of the data, such as
-means, standard deviations, and quantiles.
+Use the `transformed data` block to zero-center predictor variables
+and then account for the resulting effect
+on the location of the intercept in the `generated quantities` block.
 
->The posterior predictive distribution is the distribution over new
-observations given previous observations.  It's predictive in the
-sense that it's predicting behavior on new data that is not part of
-the training set.  It's posterior in that everything is conditioned on
-observed data $y$.
-
->The posterior predictive distribution for replications
-$y^{\textrm{rep}}$ of the original data set $y$ given model parameters
-$\theta$ is defined by
-$$
-p(y^{\textrm{rep}} \mid y)
-= \int p(y^{\textrm{rep}} \mid \theta)
-       \cdot p(\theta \mid y) \, \textrm{d}\theta.
-$$
-
-
-#### Posterior predictive density overlay plots
-
-The variable `y_rep` is a *simulated* dataset based on the observed data and the estimated parameters, using Stan's PRNG function `poisson_log_rng`,
-thus the sample contains a set of random datasets all conditioned on the observed data (nyc_geodata['count']).
-
-The posterior predictive density overlay plot compares the distribution of the observed data to the distribution of some of the simulated datasets (`y_rep`).
-
-In R, this is available from the [bayesplot](https://mc-stan.org/bayesplot) package as function [`ppc_dens_overlay`](https://mc-stan.org/bayesplot/articles/graphical-ppcs.html#ppc_dens_overlay).
-
-**R**
-```{r}
-y_rep <- as_draws_matrix(pois_xc_fit$draws("y_rep"))
-ppc_dens_overlay(nyc_geodata$count, y_rep) +
-                 ggtitle("Posterior Predictive Check: Poisson model")
+```stan
+real beta_intercept = beta0 - dot_product(means_xs, betas);
 ```
 
-To create the equivalent plot in Python:
+**Make incremental changes, save your work**
 
-1. select a random set of draws from the output.
-2. create a ggplot plot
-3. add  to the plot the density each simulated dataset  (thin line, light color, relatively transparent)
-4. add to the plot the density of the observed data (heavy line, dark color)
+We started with an extremely simple model and thus far, have
+only looked at how different transforms of the input data affect the
+sampler speed and sample size.
+Each variant of the model saved in its own file, with a minimally informative name.
+However, having established the importance of zero-centered, properly scaled data,
+we will use the `pois_xc.stan` model as the base model going forward.
+
+## Posterior Predictive Checks
+
+The generated quantities variable `y_rep` is used to run posterior predictive checks.
+If a model captures the data well, summary statistics such as sample mean and standard deviation
+of `y` and `y_rep` should have similar values.
+In particular, we expect that the observed `y` values fall within the 50% central interval
+of their corresponding `y_rep` sample at least 50% of the time.
 
 **Python**
 ```{python}
-y_rep = pois_xc_fit.stan_variable('y_rep')
+y_rep_pois = pois_fit.stan_variable("y_rep")
+print(ppc_central_interval(y_rep_pois, pois_data['y']))
+```
 
-# select random sample
-y_rep_sample = pd.DataFrame(y_rep).sample(n=50).reset_index(drop=True).T
+**R**
+```{r}
+y_rep_pois <- as_draws_matrix(pois_fit$draws("y_rep"))
+ppc_central_interval(y_rep_pois, pois_data$y)
+```
 
-# create ggplot
-pois_ppc = p9.ggplot() + p9.ggtitle("Posterior Predictive Check: Poisson model") 
+### Posterior predictive plots - `y` vs `y_rep`
 
-# add simulated dataset densities
-for i in range(50):
-    pois_ppc = (
-        pois_ppc
-        + p9.stat_density(mapping=p9.aes(x=y_rep_sample[i]),
-                          geom='line', color='lightblue', alpha=0.4)
-    )
+To visualize the above summary we create a plot which compares the raw count data `y` to the range of replicates for that value.
+First we sort the observations in ascending order; this ordering is used to lay out the values on the x-axis.
+For each observation, we plot the raw count data `y` as a point (dark blue), the central 50% interval values of `y_rep` in orange, and the entire range of `y_rep` in grey.
+We have written a series of helper functions in Python and R to set up this visualization,  function`ppc_y_yrep_overlay'
 
-# add observed data density
-pois_ppc = (
-    pois_ppc
-    + p9.stat_density(data=nyc_geodata, mapping=p9.aes(x='count'),
-                      geom='line', color='darkblue', size=1.1)
-    + p9.theme(figure_size=(6,4))
-)
-pois_ppc
+**Python**
+```{python}
+ppc_plot = ppc_y_yrep_overlay(y_rep_pois, pois_data['y'],
+                                'Poisson model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
+ppc_plot
+```
+
+**R**
+```{r}
+ppc_y_yrep_overlay(y_rep_pois, pois_data$y,
+                     'Poisson model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ```
 
 ## Refinement:  Add random effects
@@ -501,7 +567,6 @@ generated quantities {
 
 ```
 
-
 **Python**
 ```{python}
 pois_re_mod = CmdStanModel(stan_file=os.path.join(
@@ -512,12 +577,11 @@ pois_re_summary.round(2).loc[
   ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
 ```
 
-
 **R**
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_re.stan')) 
-pois_re_fit = pois_re_mod$sample(data=pois_data, parallel_chains=cores)
+pois_re_fit = pois_re_mod$sample(data=pois_data, parallel_chains=cores, refresh=0)
 pois_re_fit 
 ```
 
@@ -534,70 +598,40 @@ pois_xc_summary.round(2).loc[
 pois_xc_fit 
 ```
 
-Run the PPC plots
+#### RE model
 
 **Python**
 ```{python}
-y_rep_re = pois_re_fit.stan_variable('y_rep')
-
-# select random sample
-y_rep_re_sample = pd.DataFrame(y_rep_re).sample(n=50).reset_index(drop=True).T
-
-# create ggplot
-pois_re_ppc = p9.ggplot() + p9.ggtitle("Posterior Predictive Check: Poisson + RE model") 
-
-# add simulated dataset densities
-for i in range(50):
-    pois_re_ppc = (
-        pois_re_ppc
-        + p9.stat_density(mapping=p9.aes(x=y_rep_re_sample[i]),
-                          geom='line', color='lightblue', alpha=0.4)
-    )
-
-# add observed data density
-pois_re_ppc = (
-    pois_re_ppc
-    + p9.stat_density(data=nyc_geodata, mapping=p9.aes(x='count'),
-                      geom='line', color='darkblue', size=1.1)
-    + p9.theme(figure_size=(6,4))
-)
-pois_re_ppc
+y_rep_re = pois_re_fit.stan_variable("y_rep")
+print(ppc_central_interval(y_rep_re, pois_data['y']))
 ```
-
-
-```{python}
-pois_ppc
-```
-
 
 **R**
 ```{r}
 y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
-ppc_dens_overlay(nyc_geodata$count, y_rep_re) +
-                 ggtitle("Posterior Predictive Check: Poisson + RE Model") 
+ppc_central_interval(y_rep_re, pois_data$y)
 ```
 
+Run the PPC plots
 
+**Python**
+```{python}
+ppc_plot = ppc_y_yrep_overlay(y_rep_re, pois_data['y'],
+                                'Poisson model\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
+ppc_plot
+```
+
+**R**
 ```{r}
-ppc_dens_overlay(nyc_geodata$count, y_rep) +
-                 ggtitle("Posterior Predictive Check: Poisson Model") 
+ppc_y_yrep_overlay(y_rep_re, pois_data$y,
+                     'RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ```
 
 ## Model Comparison
 
-
-#### Leave-one-out cross-validation (LOO)
-
-
-The [loo package](https://mc-stan.org/loo/) provides an implementation of the algorithm presented in
-
-* Vehtari, A., Gelman, A. & Gabry, J. Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC. Stat Comput 27, 1413–1432 (2017). https://doi.org/10.1007/s11222-016-9696-4
-* Vehtari, A.,Simpson, D.P.,  Gelman, A., Yao, Y., & Gabry, J. Pareto Smoothed Importance Sampling, arxiv, 2024. https://arxiv.org/abs/1507.02646
-
-Pareto-smoothed importance sampling (PSIS) provides stabilized effective sample size estimates, Monte Carlo error estimates, and convergence diagnostics and provide a way to efficiently perform
-leave-one-out (LOO) cross-valiation, which allows us to compare predictive errors between two models.
-
-In R,  we can do model comparison using the `loo` package.
+In addition to comparing the model estimates and effective sample size (per second),
+we can use LOO-CV to evaluate how well the model will perform on unseen data.
+In R,  we use the `loo` package.
 
 **R**
 ```{r}
@@ -606,7 +640,6 @@ loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)
 
 loo_compare(loo_xc_pois, loo_re_pois)
 ```
-
 
 In Python, we can do this using [ArviZ](https://python.arviz.org/en/stable/).
 
@@ -624,12 +657,6 @@ idata_pois_xc = az.from_cmdstanpy(
 idata_pois_xc
 ```
 
-ArviZ provides the equivalent functions of those in R packages `bayesplot` and `loo`.
-
-```{python}
-az.plot_ppc(idata_pois_xc, data_pairs={"y":"y_rep"})
-```
-
 ```{python}
 idata_pois_re = az.from_cmdstanpy(
     pois_re_fit,
@@ -638,9 +665,10 @@ idata_pois_re = az.from_cmdstanpy(
     coords={"covariates": design_vars},
     observed_data={"y": pois_data['y']}
 )
-az.plot_ppc(idata_pois_re, data_pairs={"y":"y_rep"})
-```
 
-```{python}
 az.compare({"poisson":idata_pois_xc, "poisson_re":idata_pois_re})
 ```
+
+While the Poisson + random effects model effectively accounts for the overdispersion,
+it fails to distinguish between variance due to the spatial structure of the data and
+purely heterogenous variance.  The following notebooks show how to account for both.

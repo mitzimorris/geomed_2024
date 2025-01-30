@@ -37,21 +37,129 @@ library(bayesplot)
 library(loo)
 library(parallel)
 cores = floor(parallel::detectCores() / 2)
+source("utils_dataviz.R")
+options(width = 120)
 ```
 
+## Base Model:  `poisson.stan`
 
-
-#### Load the NYC study data 
+This file is in directory `stan/poisson.stan`.
 
 ```{r}
-nyc_geodata = st_read("data/nyc_study.geojson")
-names(nyc_geodata)
-table(nyc_geodata$BoroName)
+poisson_model_file = file.path('stan', 'poisson.stan')
+cat(readLines(poisson_model_file), sep="\n")
 ```
 
+## Model Checking and Model Comparison
 
+The generated quantities block of the base model contains the following statements:
 
-#### Assemble the input data
+```stan
+generated quantities {
+  array[N] int y_rep;
+  vector[N] log_lik;
+  {
+    vector[N] eta = log_E + beta0 + xs * betas;
+    y_rep = max(eta) < 26 ? poisson_log_rng(eta) : rep_array(-1, N);
+    for (n in 1:N) {
+      log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);
+    }
+  }
+}
+```
+
+The quantities `y_rep` and `log_lik` are used run
+posterior predictive checks and leave-one-out cross-validation (LOO-CV), respectively.
+
+### The Posterior Predictive Check 
+
+Posterior predictive checks tests how well the fitted model captures basic features of the data.
+The base model, and all models in these notebooks, use the `generated quantities` block
+to declare and populate vector `y_rep` ("replicated data"),
+which is used for
+[posterior predictive checking](https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#simulating-from-the-posterior-predictive-distribution),
+as described in the Stan User's Guide.
+
+>Posterior predictive checks are a way of measuring whether a model
+does a good job of capturing relevant aspects of the data, such as
+means, standard deviations, and quantiles.
+
+>The posterior predictive distribution is the distribution over new
+observations given previous observations.  It's predictive in the
+sense that it's predicting behavior on new data that is not part of
+the training set.  It's posterior in that everything is conditioned on
+observed data $y$.
+
+>The posterior predictive distribution for replications
+$y^{\textrm{rep}}$ of the original data set $y$ given model parameters
+$\theta$ is defined by
+$$
+p(y^{\textrm{rep}} \mid y)
+= \int p(y^{\textrm{rep}} \mid \theta)
+       \cdot p(\theta \mid y) \, \textrm{d}\theta.
+$$
+
+This is computed by the following statements:
+
+```stan
+  array[N] int y_rep;
+  {
+    vector[N] eta = log_E + beta0 + xs * betas;
+    y_rep = max(eta) < 26 ? poisson_log_rng(eta) : rep_array(-1, N);
+  }
+```
+
+It directly parallels the model block statements of the likelihood:
+
+```stan
+  y ~ poisson_log(log_E + beta0 + xs * betas);
+```
+
+Because the poisson_log_rng function parameter must be less than $30 \log 2$,
+we first compute this as local variable `eta` (to avoid output overhead), then
+use Stan's ternary operator in tandem with the vectorized
+[`poisson_log_rng`](https://mc-stan.org/docs/functions-reference/unbounded_discrete_distributions.html#poisson-distribution-log-parameterization) function to efficiently populate `y_rep`.
+
+### Leave-one-out cross-validation (LOO)
+
+Posterior predictive checks assess how well the model captures relevant aspects of the observed data.
+Leave-one-out cross-validation (LOO CV) provides a measure how well the model will generalize to
+new, unseen data.
+The [loo package](https://mc-stan.org/loo/) provides an implementation of the algorithm presented in
+
+* Vehtari, A., Gelman, A. & Gabry, J. Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC. Stat Comput 27, 1413–1432 (2017). https://doi.org/10.1007/s11222-016-9696-4
+* Vehtari, A.,Simpson, D.P.,  Gelman, A., Yao, Y., & Gabry, J. Pareto Smoothed Importance Sampling, arxiv, 2024. https://arxiv.org/abs/1507.02646
+
+It simulates what would happen if we refit the model while leaving out each data point, one at a time.
+Since refitting the model repeatedly is too computationally expensive), loo() uses
+Pareto Smoothed Importance Sampling (PSIS) to approximate this process efficiently.
+
+The primary metric from `loo()` is the Expected Log Predictive Density (ELPD)
+which is the log-probability of new data given the model.
+A higher ELPD means better predictive performance.
+However, the scale is relative,
+so the absolute ELPD value is not as important as the difference between ELPD scores
+for different models.
+This can be carried out using the `loo_compare()` function.
+By convention, both functions require that the Stan model outputs
+the generated quantity `log_lik`, which is simply the log likelihood.
+Although the `model` block computes the likelihood, this value is not saved.
+The most efficient way to capture this value is to recompute it in the
+`generated quantities` block, via the following statements.
+
+```stan
+  vector[N] log_lik;
+  {
+    vector[N] eta = log_E + beta0 + xs * betas;
+    for (n in 1:N) {
+      log_lik[n] = poisson_log_lpmf(y[n] | eta[n]);
+    }
+  }
+```
+
+## Model Fitting
+
+### Assemble the input data
 
 The data block of the model declares variables:
 
@@ -60,6 +168,19 @@ The data block of the model declares variables:
 - `E` - the population per tract ("exposure")
 - `K` - the number of predictors
 - `xs` - the N x K data matrix of predictors
+
+The study data and GIS data have been assembled into a single GeoJSON file.
+The dataset we're using is that used in the analysis published in 2019
+[Bayesian Hierarchical Spatial Models: Implementing the Besag York Mollié Model in Stan](https://www.sciencedirect.com/science/article/pii/S1877584518301175).
+The data consists of motor vehicle collisions in New York City,
+as recorded by the NYC Department of Transportation, between the years 2005-2014,
+restricted to collisions involving school age children 5-18 years of age as pedestrians.
+
+```{r}
+nyc_geodata = st_read("data/nyc_study.geojson")
+names(nyc_geodata)
+table(nyc_geodata$BoroName)
+```
 
 The predictors from the study data are columns: `pct_pubtransit`,`med_hh_inc`, `traffic`, `frag_index`.
 
@@ -78,28 +199,22 @@ pois_data <- list(
 )
 ```
 
-## Base Model:  `poisson.stan`
+### Instantiate the model
 
-This file is in directory `stan/poisson.stan`.
-
-```{r}
-poisson_model_file = file.path('stan', 'poisson.stan')
-cat(readLines(poisson_model_file), sep="\n")
-```
-
-#### Model is compiled (as needed) on instantiation 
+Creating a `CmdStanModel` object from a `.stan` file
+compiles or recompiles the model, as needed.
 
 ```{r}
 pois_mod = cmdstan_model(stan_file=poisson_model_file)
 ```
 
-#### Run the NUTS-HMC sampler 
+### Run the NUTS-HMC sampler 
 
 ```{r}
-pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores)
+pois_fit = pois_mod$sample(data=pois_data, parallel_chains=cores, refresh=0)
 ```
 
-#### Summarize the results
+### Summarize the results
 
 ```{r}
 pois_fit
@@ -145,18 +260,14 @@ model {
 }
 generated quantities {
   real beta_intercept = beta0 - dot_product(means_xs, betas);  // adjust intercept
-  // compute log_lik, y_rep 
-  {
-    vector[N] eta = log_E + beta0 + xs_centered * betas;   // centered data
-    //  ..
-  }
+  // compute y_rep and log_lik using xs_centered (as before)
 }
 ```
 
 ```{r}
 pois_xc_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_ctr_preds.stan')) 
-pois_xc_fit = pois_xc_mod$sample(data=pois_data, parallel_chains=cores)
+pois_xc_fit = pois_xc_mod$sample(data=pois_data, parallel_chains=cores, refresh=0)
 pois_xc_fit
 ```
 
@@ -169,7 +280,7 @@ pois_fit
 
 ## Predictor Data Scales
 
-The data variables are on different scales
+The data variables are on different scales:
 
 | Measures                                              | Median | Min    | Mean     | Max       |
 |-------------------------------------------------------|--------|--------|----------|-----------|
@@ -197,10 +308,10 @@ print(summary(design_mat))
 print(summary(design_mat_2))
 ```
 
-Run the base model on this data 
+Run the base model on this data.
 
 ```{r}
-pois_fit_2 = pois_mod$sample(data=pois_data_2, parallel_chains=cores)
+pois_fit_2 = pois_mod$sample(data=pois_data_2, parallel_chains=cores, refresh=0)
 pois_fit_2
 ```
 
@@ -210,54 +321,61 @@ it either overflows or underflow because the predictors are on wildly different 
 (Transforming the data fails faster because it both both `traffic` and `med_hh_inc`
 include large negative values - this underflows consistently.)
 
-```r
+```{r}
 # uncomment next line, sampler will fail
-# pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores)
+# pois_xc_mod$sample(data=pois_data_2, parallel_chains=cores, refresh=0)
 ```
 
-#### Takeaway
+## Best Practices
 
-To improve model fit and processing speed, predictors should be on the same scale.
+**Rescale predictors**
 
-*But* remember to account for any rescaling when trying to interpret the fitted coefficients! 
+Ensure that all columns of the design matrix (predictor variables) are on a similar scale to improve model convergence and interpretation. Large differences in scale can lead to inefficient sampling and numerical instability.
 
-## Model Checking:  The Posterior Predictive Check 
+*But* remember to account for any rescaling when trying to interpret the fitted coefficients.
 
-From the [Stan Users Guide](https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#simulating-from-the-posterior-predictive-distribution)
+**Zero-center predictors**
 
->Posterior predictive checks are a way of measuring whether a model
-does a good job of capturing relevant aspects of the data, such as
-means, standard deviations, and quantiles.
+Use the `transformed data` block to zero-center predictor variables
+and then account for the resulting effect
+on the location of the intercept in the `generated quantities` block.
 
->The posterior predictive distribution is the distribution over new
-observations given previous observations.  It's predictive in the
-sense that it's predicting behavior on new data that is not part of
-the training set.  It's posterior in that everything is conditioned on
-observed data $y$.
+```stan
+real beta_intercept = beta0 - dot_product(means_xs, betas);
+```
 
->The posterior predictive distribution for replications
-$y^{\textrm{rep}}$ of the original data set $y$ given model parameters
-$\theta$ is defined by
-$$
-p(y^{\textrm{rep}} \mid y)
-= \int p(y^{\textrm{rep}} \mid \theta)
-       \cdot p(\theta \mid y) \, \textrm{d}\theta.
-$$
+**Make incremental changes, save your work**
 
+We started with an extremely simple model and thus far, have
+only looked at how different transforms of the input data affect the
+sampler speed and sample size.
+Each variant of the model saved in its own file, with a minimally informative name.
+However, having established the importance of zero-centered, properly scaled data,
+we will use the `pois_xc.stan` model as the base model going forward.
 
-#### Posterior predictive density overlay plots
+## Posterior Predictive Checks
 
-The variable `y_rep` is a *simulated* dataset based on the observed data and the estimated parameters, using Stan's PRNG function `poisson_log_rng`,
-thus the sample contains a set of random datasets all conditioned on the observed data (nyc_geodata['count']).
-
-The posterior predictive density overlay plot compares the distribution of the observed data to the distribution of some of the simulated datasets (`y_rep`).
-
-In R, this is available from the [bayesplot](https://mc-stan.org/bayesplot) package as function [`ppc_dens_overlay`](https://mc-stan.org/bayesplot/articles/graphical-ppcs.html#ppc_dens_overlay).
+The generated quantities variable `y_rep` is used to run posterior predictive checks.
+If a model captures the data well, summary statistics such as sample mean and standard deviation
+of `y` and `y_rep` should have similar values.
+In particular, we expect that the observed `y` values fall within the 50% central interval
+of their corresponding `y_rep` sample at least 50% of the time.
 
 ```{r}
-y_rep <- as_draws_matrix(pois_xc_fit$draws("y_rep"))
-ppc_dens_overlay(nyc_geodata$count, y_rep) +
-                 ggtitle("Posterior Predictive Check: Poisson model")
+y_rep_pois <- as_draws_matrix(pois_fit$draws("y_rep"))
+ppc_central_interval(y_rep_pois, pois_data$y)
+```
+
+### Posterior predictive plots - `y` vs `y_rep`
+
+To visualize the above summary we create a plot which compares the raw count data `y` to the range of replicates for that value.
+First we sort the observations in ascending order; this ordering is used to lay out the values on the x-axis.
+For each observation, we plot the raw count data `y` as a point (dark blue), the central 50% interval values of `y_rep` in orange, and the entire range of `y_rep` in grey.
+We have written a series of helper functions in Python and R to set up this visualization,  function`ppc_y_yrep_overlay'
+
+```{r}
+ppc_y_yrep_overlay(y_rep_pois, pois_data$y,
+                     'Poisson model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ```
 
 ## Refinement:  Add random effects
@@ -302,7 +420,7 @@ generated quantities {
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_re.stan')) 
-pois_re_fit = pois_re_mod$sample(data=pois_data, parallel_chains=cores)
+pois_re_fit = pois_re_mod$sample(data=pois_data, parallel_chains=cores, refresh=0)
 pois_re_fit 
 ```
 
@@ -312,33 +430,25 @@ How do the samples differ from the base model?
 pois_xc_fit 
 ```
 
-Run the PPC plots
+#### RE model
 
 ```{r}
 y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
-ppc_dens_overlay(nyc_geodata$count, y_rep_re) +
-                 ggtitle("Posterior Predictive Check: Poisson + RE Model") 
+ppc_central_interval(y_rep_re, pois_data$y)
 ```
+
+Run the PPC plots
+
 ```{r}
-ppc_dens_overlay(nyc_geodata$count, y_rep) +
-                 ggtitle("Posterior Predictive Check: Poisson Model") 
+ppc_y_yrep_overlay(y_rep_re, pois_data$y,
+                     'RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ```
 
 ## Model Comparison
 
-
-#### Leave-one-out cross-validation (LOO)
-
-
-The [loo package](https://mc-stan.org/loo/) provides an implementation of the algorithm presented in
-
-* Vehtari, A., Gelman, A. & Gabry, J. Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC. Stat Comput 27, 1413–1432 (2017). https://doi.org/10.1007/s11222-016-9696-4
-* Vehtari, A.,Simpson, D.P.,  Gelman, A., Yao, Y., & Gabry, J. Pareto Smoothed Importance Sampling, arxiv, 2024. https://arxiv.org/abs/1507.02646
-
-Pareto-smoothed importance sampling (PSIS) provides stabilized effective sample size estimates, Monte Carlo error estimates, and convergence diagnostics and provide a way to efficiently perform
-leave-one-out (LOO) cross-valiation, which allows us to compare predictive errors between two models.
-
-In R,  we can do model comparison using the `loo` package.
+In addition to comparing the model estimates and effective sample size (per second),
+we can use LOO-CV to evaluate how well the model will perform on unseen data.
+In R,  we use the `loo` package.
 
 **R**
 ```{r}
@@ -347,3 +457,7 @@ loo_re_pois <- loo(pois_re_fit$draws("log_lik"), save_psis = TRUE)
 
 loo_compare(loo_xc_pois, loo_re_pois)
 ```
+
+While the Poisson + random effects model effectively accounts for the overdispersion,
+it fails to distinguish between variance due to the spatial structure of the data and
+purely heterogenous variance.  The following notebooks show how to account for both.

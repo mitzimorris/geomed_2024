@@ -360,9 +360,12 @@ We note two differences:
 
 ### Connected and Disconnected Graphs: Components and Islands
 
-A graph component is a set of nodes for which there is a path from any node in the component
-to every other node in that set.
-A fully connected graph is a graph over a single component.
+A graph component is a set of 2 or more nodes for which
+there is a path from any node in the component to every other node in that set.
+A component is a set of nodes and edge pairs where every node is a member
+of at least one edge pair.
+A fully connected graph is a graph consisting of a single component,
+so that it is possible to find a path from any node in the graph to every other node.
 As the map of NYC shows (above), the graph is not fully connected, i.e.,
 it is impossible to find a path from Staten Island to the Bronx,
 and there are 3 regions which have no neighbors - these are islands,

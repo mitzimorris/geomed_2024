@@ -14,13 +14,13 @@ upper_corr_matrix_to_df <- function(draws) {
     return(melted)
 }
 
-plot_icar_corr_matrix <- function(plot_df, title, size) {
-    ggplot(plot_df, aes(x = Var1, y = Var2, fill = Correlation)) +
+plot_icar_corr_matrix <- function(draws, title) {
+    corr_df <- upper_corr_matrix_to_df(draws)
+    ggplot(corr_df, aes(x = Var1, y = Var2, fill = Correlation)) +
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
         theme_minimal() +
         theme(
-            figure_size = size,
             axis.text.x = element_blank(),
             axis.text.y = element_blank()
         ) +

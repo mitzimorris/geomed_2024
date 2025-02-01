@@ -29,9 +29,10 @@ def upper_corr_matrix_to_df(draws: np.ndarray) -> pd.DataFrame:
     melted = melted.dropna()
     return melted
 
-def plot_icar_corr_matrix(plot_df: pd.DataFrame, title: str, size: tuple[int, int]) -> p9.ggplot:
+def plot_icar_corr_matrix(draws: np.ndarray, title: str, size: tuple[int, int]) -> p9.ggplot:
+    corr_df = upper_corr_matrix_to_df(draws)
     p = (
-        p9.ggplot(plot_df, p9.aes(x='Var1', y='Var2', fill='Correlation'))
+        p9.ggplot(corr_df, p9.aes(x='Var1', y='Var2', fill='Correlation'))
         + p9.geom_tile()
         + p9.scale_fill_gradient2(low='blue', mid='white', high='red', midpoint=0)
         + p9.theme_minimal()

@@ -89,6 +89,7 @@ census tracts, respectively.
 ```{r}
 nyc_nbs = poly2nb(nyc_geodata, queen=FALSE)
 summary(nyc_nbs)
+table(n.comp.nb(nyc_nbs)$comp.id)
 ```
 
 * For the NYC analysis paper, we hand edited the map of NYC (in R) to create a fully connected network graph.

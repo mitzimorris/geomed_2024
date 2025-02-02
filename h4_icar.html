@@ -3698,7 +3698,8 @@ color: var(--quarto-text-muted);
 <span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(parallel)</span>
 <span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>cores <span class="ot">=</span> <span class="fu">floor</span>(parallel<span class="sc">::</span><span class="fu">detectCores</span>() <span class="sc">/</span> <span class="dv">2</span>)</span>
 <span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;utils_bym2.R&quot;</span>)</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;utils_dataviz.R&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;utils_dataviz.R&quot;</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> <span class="dv">120</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="ot">=</span> <span class="fu">st_read</span>(<span class="st">&quot;data/nyc_study.geojson&quot;</span>)</span>
@@ -3909,35 +3910,37 @@ color: var(--quarto-text-muted);
 <h2 class="anchored" data-anchor-id="model-checking">Model Checking</h2>
 <section id="visualizing-the-icar-component" class="level3">
 <h3 class="anchored" data-anchor-id="visualizing-the-icar-component">Visualizing the ICAR component</h3>
-<p>To see the spatial structure of the data, we plot the covariance matrix of <code>phi</code>. We expect neighboring regions to be correlated, and distant regions to be uncorrelated. To do this, we have written a helper function, <code>plot_icar_corr_matrix</code>.</p>
+<p>To see the spatial structure of the data, we plot the covariance matrix of <code>phi</code>. We expect neighboring regions to be correlated, and distant regions to be uncorrelated. To do this, we have written a helper function, <code>plot_icar_corr_matrix</code>, which plots just the upper half of the correlation matrix of <code>phi</code>, with red indicating positive correlation and blue indicating negative correlation. The census tracts are listed roughly in geographic order, from north-to-south and east-to-west, thus adjacent elements along the diagonal are spatially adjacent.</p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>y_rep_icar <span class="op">=</span> pois_icar_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>corr_plot <span class="op">=</span> plot_icar_corr_matrix(y_rep_icar, <span class="st">&#39;ICAR correlation matrix&#39;</span>, (<span class="dv">10</span>, <span class="dv">10</span>))</span>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>phi_icar <span class="op">=</span> pois_icar_fit.stan_variable(<span class="st">&quot;phi&quot;</span>)</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>corr_plot <span class="op">=</span> plot_icar_corr_matrix(phi_icar, <span class="st">&#39;ICAR correlation matrix&#39;</span>, (<span class="dv">10</span>, <span class="dv">10</span>))</span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>corr_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>y_rep_icar <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_icar_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_icar_corr_matrix</span>(y_rep_icar, <span class="st">&#39;ICAR correlation matrix&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>phi_icar <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_icar_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;phi&quot;</span>))</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_icar_corr_matrix</span>(phi_icar, <span class="st">&#39;ICAR correlation matrix&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>The long diagnonal edge shows evidence of high correlation between adjacent regions, in contrast to the lack of any distinctive pattern along the short edges or interior of the plot.</p>
+<p>The correlation matrix shows strong correlation between neighbors, along the diagonal, and low correlation between distant regions, in the upper left-hand corner.</p>
 </section>
 <section id="posterior-predictive-checks" class="level3">
 <h3 class="anchored" data-anchor-id="posterior-predictive-checks">Posterior predictive checks</h3>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_icar, pois_icar_data[<span class="st">&#39;y&#39;</span>]))</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>ppc_plot <span class="op">=</span> ppc_y_yrep_overlay(y_rep_icar, pois_icar_data[<span class="st">&#39;y&#39;</span>],</span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>                                <span class="st">&#39;Poisson + ICAR model PPC</span><span class="ch">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50</span><span class="sc">% c</span><span class="st">entral interval, grey full extent)&#39;</span>)</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>ppc_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>y_rep_icar <span class="op">=</span> pois_icar_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_icar, pois_icar_data[<span class="st">&#39;y&#39;</span>]))</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>ppc_plot <span class="op">=</span> ppc_y_yrep_overlay(y_rep_icar, pois_icar_data[<span class="st">&#39;y&#39;</span>],</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>                                <span class="st">&#39;Poisson + ICAR model PPC</span><span class="ch">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50</span><span class="sc">% c</span><span class="st">entral interval, grey full extent)&#39;</span>)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>ppc_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_central_interval</span>(y_rep_icar, pois_icar_data<span class="sc">$</span>y)</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_y_yrep_overlay</span>(y_rep_icar, pois_icar_data<span class="sc">$</span>y,</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>                     <span class="st">&#39;Poisson + ICAR model PPC</span><span class="sc">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50% central interval, grey full extent)&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>y_rep_icar <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(pois_icar_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_central_interval</span>(y_rep_icar, pois_icar_data<span class="sc">$</span>y)</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_y_yrep_overlay</span>(y_rep_icar, pois_icar_data<span class="sc">$</span>y,</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>                     <span class="st">&#39;Poisson + ICAR model PPC</span><span class="sc">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50% central interval, grey full extent)&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 </section>
@@ -3984,14 +3987,13 @@ color: var(--quarto-text-muted);
 <h3 class="anchored" data-anchor-id="compare-posterior-predictive-check-coverage">Compare Posterior predictive check coverage</h3>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>y_rep_icar <span class="op">=</span> pois_icar_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_icar, pois_icar_data[<span class="st">&#39;y&#39;</span>]))</span>
-<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>y_rep_pois <span class="op">=</span> pois_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
-<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_pois, pois_icar_data[<span class="st">&#39;y&#39;</span>]))</span>
-<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>y_rep_re <span class="op">=</span> pois_re_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
-<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_re, pois_icar_data[<span class="st">&#39;y&#39;</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_icar, pois_icar_data[<span class="st">&#39;y&#39;</span>]))</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>y_rep_pois <span class="op">=</span> pois_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_pois, pois_icar_data[<span class="st">&#39;y&#39;</span>]))</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>y_rep_re <span class="op">=</span> pois_re_fit.stan_variable(<span class="st">&quot;y_rep&quot;</span>)</span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ppc_central_interval(y_rep_re, pois_icar_data[<span class="st">&#39;y&#39;</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
 <div class="cell">

@@ -224,19 +224,24 @@ pois_icar_fit
 
 To see the spatial structure of the data, we plot the covariance matrix of `phi`.
 We expect neighboring regions to be correlated, and distant regions to be uncorrelated.
-To do this, we have written a helper function, `plot_icar_corr_matrix`.
+To do this, we have written a helper function, `plot_icar_corr_matrix`,
+which plots just the upper half of the correlation matrix of `phi`,
+with red indicating positive correlation and blue indicating negative correlation.
+The census tracts are listed roughly in geographic order, from north-to-south and
+east-to-west, thus adjacent elements along the diagonal are spatially adjacent.
 
 ```{r}
-y_rep_icar <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
-plot_icar_corr_matrix(y_rep_icar, 'ICAR correlation matrix')
+phi_icar <- as_draws_matrix(pois_icar_fit$draws("phi"))
+plot_icar_corr_matrix(phi_icar, 'ICAR correlation matrix')
 ```
 
-The long diagnonal edge shows evidence of high correlation between adjacent regions,
-in contrast to the lack of any distinctive pattern along the short edges or interior of the plot.
+The correlation matrix shows strong correlation between neighbors, along the diagonal,
+and low correlation between distant regions, in the upper left-hand corner.
 
 ### Posterior predictive checks
 
 ```{r}
+y_rep_icar <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
 ppc_central_interval(y_rep_icar, pois_icar_data$y)
 ppc_y_yrep_overlay(y_rep_icar, pois_icar_data$y,
                      'Poisson + ICAR model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')

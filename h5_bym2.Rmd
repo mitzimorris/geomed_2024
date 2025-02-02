@@ -12,83 +12,82 @@ format:
       body-width: 1000px
 ---
 
+### The BYM2 Model: Riebler et al, 2016
+
+The ICAR model assumes complete spatial correlation between regions.
+This simplifying assumption makes it cheap to compute;  the CAR model,
+which adds a weight to each neighbor pair to account for the strength of
+the spatial correlation, requires computing the inverse of the
+adjacency matrix, an cubic operation.  For maps with more than a handful of regions,
+this is prohibitively expensive, computationally.   The Besag York Mollié (BYM)
+model was developed to address this problem; the BYM2 model builds on this model
+and subsequent refinements.
+
+* Poisson regression + component for extra variation which
+combines spatial and non-spatial components $\phi + \theta$ as
+$$\left( (\sqrt{\, {\rho} / s}\, \ )\,\phi^* + (\sqrt{1-\rho})\,\theta^* \right) \sigma $$
+where:
+  + $\sigma\geq 0$ is the overall standard deviation.
+  + $\rho \in [0,1]$ - proportion of spatial variance.
+  + $\phi^*$ is the ICAR component.
+  + $\theta^* \sim N(0, 1)$ is the vector of ordinary random effects
+  + $s$ is a scaling factor s.t. $\operatorname{Var}(\phi_i) \approx 1$; $s$ is data.
+
+* Follows previous BYM modifications, notably Leroux 2000,
+which has a single scale parameter plus mixing parameter.
+
+* Adds a scaling factor on the ICAR component so that for each element $i$ in vectors $\theta$ and $\phi$,
+$\operatorname{Var}(\theta_i) \approx \operatorname{Var}(\phi_i) \approx 1$.  The scaling factor is derived from the adjacency matrix (neighbors graph).
+
 ## Notebook Setup
 
 ### Libraries and helper functions.
 
-**R**
 ```{r}
+library(ggplot2)
+library(igraph)
+library(Matrix)
+library(parallel)
 library(sf)
 library(spdep) |> suppressPackageStartupMessages()
-library(ggplot2)
 library(tidyverse) |> suppressPackageStartupMessages()
+
 library(cmdstanr)
 library(posterior)
 library(bayesplot)
 library(loo)
-library(parallel)
-library(igraph)
-library(Matrix)
 cores = floor(parallel::detectCores() / 2)
+source("utils_bym2.R")
+source("utils_dataviz.R")
+options(width = 120)
 ```
 
-```{r}
-# helper functions
-
-#  create edgelist for ICAR component
-nbs_to_adjlist <- function(nb) {
-    adj_matrix = nb2mat(nb,style="B")
-    t(as_edgelist(graph_from_adjacency_matrix(adj_matrix, mode="undirected")))
-}
-
-# Compute the inverse of a sparse precision matrix
-q_inv_dense <- function(Q, A = NULL) {
-  Sigma <- Matrix::solve(Q)
-  if (is.null(A))
-    return(Sigma)
-  else {
-    A <- matrix(1,1, nrow(Sigma))
-    W <- Sigma %*% t(A)
-    Sigma_const <- Sigma - W %*% solve(A %*% W) %*% t(W)
-    return(Sigma_const)
-  }
-}
-
-# Compute the geometric mean of the spatial covariance matrix
-get_scaling_factor = function(nbs) {
-    N = length(nbs)
-    # Create ICAR precision matrix  (diag - adjacency): this is singular
-    adj_matrix = nb2mat(nbs,style="B")
-    Q =  Diagonal(N, rowSums(adj_matrix)) - adj_matrix
-    # Add a small jitter to the diagonal for numerical stability (optional but recommended)
-    Q_pert = Q + Diagonal(N) * max(diag(Q)) * sqrt(.Machine$double.eps)
-    # Compute the diagonal elements of the covariance matrix
-    Q_inv = q_inv_dense(Q_pert, adj_matrix)
-    # Compute the geometric mean of the variances, which are on the diagonal of Q_inv
-    return(exp(mean(log(diag(Q_inv)))))
-}
-```
-
-### Load Data
+### Load NYC Dataset
 
 ```{r}
 nyc_geodata = st_read("data/nyc_study.geojson")
 names(nyc_geodata)
 ```
 
-## Disconnected Components (and islands)
+## New York City Neighbor Graph
 
 New York city consists of several islands; only the Bronx is part of the mainland; Brooklyn and Queens are part of Long Island, plus smaller islands City Island, Roosevelt Island, and the Rockaways.
 
 *This is a problem for the ICAR model, which operates on a fully connected graph (single component)*
 
+```{r}
+nyc_nbs = poly2nb(nyc_geodata)
+summary(nyc_nbs)
+table(n.comp.nb(nyc_nbs)$comp.id)
+```
+
 * For the NYC analysis paper, we hand edited the map of NYC (in R) to create a fully connected network graph.
 
-* For this notebook, we will restrict out attention to Brooklyn, the largest borough in NYC, which is a single network component.
+* For this notebook we restrict our attention to Brooklyn, the largest borough in NYC, which is a single network component.
 
 ```{r}
 brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
-brooklyn_nbs = poly2nb(brooklyn_geodata, queen=FALSE)
+brooklyn_nbs = poly2nb(brooklyn_geodata)
 brooklyn_coords = st_coordinates(st_centroid(brooklyn_geodata['geometry']))
 plot(st_geometry(brooklyn_geodata), col='skyblue')
 plot(brooklyn_nbs, coords=brooklyn_coords, add=TRUE, pch=20, cex=0.6)
@@ -100,7 +99,7 @@ summary(brooklyn_nbs)
 
 ## From ICAR to BYM2
 
-* Combines both ICAR component $\phi$ and ordinary random effects $\theta$ as
+* The BYM2 model combines both ICAR component $\phi$ and ordinary random effects $\theta$ as
 $$\left( (\sqrt{\, {\rho} / s}\, \ )\,\phi^* + (\sqrt{1-\rho})\,\theta^* \right) \sigma $$
 
 * Parameter $\rho$ answers the question:  how much of the observed variance is spatial?
@@ -116,7 +115,7 @@ bym2_model_file = file.path('stan', 'bym2.stan')
 cat(readLines(bym2_model_file), sep="\n")
 ```
 
-## Data Prep
+## Preparing the data inputs
 
 ### Get edgeset
 
@@ -130,6 +129,15 @@ brooklyn_nbs_adj[1:2, 1:10]
 ```
 
 ### Compute scaling factor `tau`
+
+The BYM2 model component gamma combines an vector of non-spatial random effects `theta`,
+and the vector of spatial random effects `phi`.
+The prior on `theta` is `std_normal()` thus the its variance is approximately $1$.
+The prior on `phi` is the ICAR component, the spatial covariance matrix.
+To make the variance of the `phi` be approximately $1$,
+Riebler et. al. recommend scaling it by the geometric mean of
+the variance of the spatial adjacency matrix.
+This quantity is `tau`, and is computed by helper function `get_scaling_factor`.
 
 ```{r}
 tau = get_scaling_factor(brooklyn_nbs)
@@ -159,6 +167,98 @@ bym2_data <- list(
 )
 ```
 
+## Workflow:  Prior Predictive Checking
+
+Prior and posterior predictive checks are two cases of the general concept of predictive checks,
+just conditioning on different things (no data and the observed data, respectively).
+Posteior predictive checks were introduced in the Stan model building workflow notebook,
+which shows how to generate a new dataset (`y_rep`) in the generated quantities block
+based on the sample estimate of the model parameters.
+Comparison of the replicated datasets with the observed datasets
+shows how well or poorly the model captures the essential
+characteristics of the data.
+
+[Prior predictive checks](https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#prior-predictive-checks)
+simulate data directly from the prior, in the absense of any observed data.
+The resulting datasets, often called `y_sim`, instead of `y_rep`,
+show the possible range of data that is consistent with the priors.
+This can be used to diagnose priors which are too strong or too weak.
+
+The Stan User's Guide shows
+[how to code](https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html#prior-predictive-checks)
+in order to check all priors.
+Unlike posterior predictive checks, in order to efficiently do the simulation,
+it is necessary to rewrite the model.
+In this notebook, we only want to verify that the BYM2 model does in fact properly
+scale the variance of `phi`, so we only need to simulate the 
+convolved spatial and random effects component `gamma`,
+which will allow us to check `theta`, `phi`, and `rho`.
+
+
+### Checking effect of scaling `phi` by `tau`.
+
+
+To examine the effect of the scaling factor, we simulate
+the parameters `gamma`, `phi`, `theta`, and `rho`
+using a simplified version of the model that excludes
+both the observed data (`y` and `xs`) and the Poisson regression component.
+This allows us to assess the resulting priors on `phi`, `theta`, and `rho`
+*before incorporating any data*.
+
+```{r}
+bym2_gamma_ppc_file = file.path('stan', 'bym2_gamma_ppc.stan')
+cat(readLines(bym2_gamma_ppc_file), sep="\n")
+```
+
+#### Model compilation
+
+```{r}
+bym2_gamma_ppc_mod = cmdstan_model(stan_file=bym2_gamma_ppc_file)
+```
+
+#### Run model, check variances
+
+In the BYM2 model, phi is scaled by the square root of $1$/`tau`
+since the ICAR component `phi` follows a multivariate normal distribution
+with covariance matrix $\Sigma$, whereas `theta` is a vector of standard normal variables.
+
+```{r}
+bym2_gamma_ppc_fit = bym2_gamma_ppc_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
+```
+
+```{r}
+phi <- as_draws_matrix(bym2_gamma_ppc_fit$draws("phi"))
+phi_var_by_region <- apply(sqrt(1/tau) * phi, 2, var)  # variance across draws for each region
+print(paste("mean variance of phi scaled:", mean(phi_var_by_region)))
+theta <- as_draws_matrix(bym2_gamma_ppc_fit$draws("theta"))
+theta_var_by_region <- apply(theta, 2, var)  # variance across draws for each region
+print(paste("mean variance of theta:", mean(theta_var_by_region)))
+```
+
+#### Check `rho`
+
+The fitted model also provides an estimate of `rho`, which has prior
+
+```stan
+rho ~ beta(0.5, 0.5);
+```
+
+As expected, before seeing any data, the value of `rho` matches the prior.
+
+```{r}
+rho <- as_draws_array(bym2_gamma_ppc_fit$draws("rho"))
+mean(rho)
+```
+
+
+### Comparison with the Leroux model
+
+When the scaling factor `tau` is 1.0,  the BYM2 model is equivalent to the Leroux model, and in this case, we can compute the variance of phi directly.
+
+```{r}
+print(paste("mean variance of phi:", mean(apply(phi, 2, var))))
+```
+
 ## Fitting the BYM2 Model on the Brooklyn data
 
 #### Model is compiled (as needed) on instantiation 
@@ -171,46 +271,50 @@ bym2_mod = cmdstan_model(stan_file=bym2_model_file)
 
 ```{r}
 bym2_fit = bym2_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
-bym2_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho'))
+bym2_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho')) 
 ```
 
-## Using variational methods to initialize parameters for MCMC
+## Model Checking
 
-By default, Stan's NUTS-HMC sampler algorithm randomly initializes all model parameters in the range uniform[-2, 2].
-When the true parameter value is outside of this range,
-starting from the estimates obtained from Stan's variational methods Pathfinder and ADVI
-will improve adaptation, resulting in faster warmup and a better sample.
+### Visualizing the ICAR component
 
-See [Using Variational Estimates to Initialize the NUTS-HMC Sampler](https://mc-stan.org/cmdstanpy/users-guide/examples/VI%20as%20Sampler%20Inits.html) (Python) and [this example on Stan Discourse](https://discourse.mc-stan.org/t/using-pathfinder-or-other-method-to-set-initial-values-for-sampling/34960/8) (R).
-
-For the BYM2 model, the LOO diagnostic, based on Pareto-smoothed importance sampling (PSIS)
-is problematic, as the ICAR component in the BYM2 model doesn't factorize, therefore,
-when running Pathfinder, we set parameter `psis_resample` to False.
+To see the spatial structure of the data, we plot the covariance matrix of `phi`.
+We expect neighboring regions to be correlated, and distant regions to be uncorrelated.
+To do this, we have written a helper function, `plot_icar_corr_matrix`,
+which plots just the upper half of the correlation matrix of `phi`,
+with red indicating positive correlation and blue indicating negative correlation.
+The census tracts are listed roughly in geographic order, from north-to-south and
+east-to-west, thus adjacent elements along the diagonal are spatially adjacent.
 
 ```{r}
-bym2_pathfinder = bym2_mod$pathfinder(data=bym2_data, psis_resample=FALSE)
-bym2_init_fit = bym2_mod$sample(data=bym2_data, parallel_chains=cores, init=bym2_pathfinder, refresh=0)
-bym2_init_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho'))
-```
-```{r}
-bym2_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho'))
-cat('Pathfinder estimates')
-bym2_pathfinder$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho'))
+phi_bym2 <- as_draws_matrix(bym2_fit$draws("phi"))
+plot_icar_corr_matrix(phi_bym2, 'BYM2 spatial correlation')
 ```
 
-## Model Comparison: BYM2 vs ICAR vs. ordinary random effects
-
-
-#### ICAR model
+##### Comparison to simple ICAR model 
 
 ```{r}
 pois_icar_mod = cmdstan_model(stan_file=file.path(
   'stan', 'poisson_icar.stan')) 
 pois_icar_fit = pois_icar_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
+phi_icar <- as_draws_matrix(pois_icar_fit$draws("phi"))
+plot_icar_corr_matrix(phi_icar, 'ICAR spatial correlation')
+```
+
+Compared to the covariance matrix of `phi` for the BYM2 model,
+the spatial correlations are less sharp, i.e. the addition of
+component `theta` allows `phi` to more strongly identify
+the spatial correlation structure of the data.
+
+## Model Comparison: BYM2 vs Poisson + ICAR vs. Poisson + RE
+
+#### Poisson + ICAR model
+
+```{r}
 pois_icar_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma'))
 ```
 
-#### Ordinary random effects model
+#### Poisson + RE model
 
 ```{r}
 pois_re_mod = cmdstan_model(stan_file=file.path(
@@ -219,13 +323,15 @@ pois_re_fit = pois_re_mod$sample(data=bym2_data, parallel_chains=cores, refresh=
 pois_re_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma'))
 ```
 
-Which model provides a better fit (on the Brooklyn subset of the data)?
+### Compare overall variance
+
+In the these models `sigma` determines the overall magnitude of variation
+in the combined spatial (`phi`) and non-spatial(`theta`) random effects.
+The BYM2 model adds parameter `rho`, the proportion of variance which is spatially structured.
 
 ```{r}
 cat("BYM2")
 bym2_fit$print(variables = c('sigma', 'rho'))
-cat("BYM2, pathfinder inits")
-bym2_init_fit$print(variables = c('sigma', 'rho'))
 
 cat("Poisson ICAR")
 pois_icar_fit$print(variables = c('sigma'))
@@ -234,29 +340,47 @@ cat("Poisson Ordinary Random Effects")
 pois_re_fit$print(variables = c('sigma'))
 ```
 
-### Visual comparison
+### Compare Posterior predictive check coverage
+
+```{r}
+y_rep_bym2 <- as_draws_matrix(bym2_fit$draws("y_rep"))
+cat("PPC BYM2")
+ppc_central_interval(y_rep_bym2, bym2_data$y)
+
+y_rep_icar <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
+cat("PPC Poisson + ICAR")
+ppc_central_interval(y_rep_icar, bym2_data$y)
+
+y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
+cat("PPC Poisson + RE")
+ppc_central_interval(y_rep_re, bym2_data$y)
+```
+
+### PPC plots
 
 #### BYM2 model
 
 ```{r}
-y_rep_bym2 <- as_draws_matrix(bym2_fit$draws("y_rep"))
-ppc_dens_overlay(brooklyn_geodata$count, y_rep_bym2) +
-                 ggtitle("Posterior Predictive Check: BYM2 model")
+ppc_y_yrep_overlay(y_rep_bym2, bym2_data$y,
+                     'BYM2 model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ```
 
 
 #### ICAR model
 
 ```{r}
-y_rep_icar <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
-ppc_dens_overlay(brooklyn_geodata$count, y_rep_icar) +
-                 ggtitle("Posterior Predictive Check: Poisson ICAR model")
+ppc_y_yrep_overlay(y_rep_icar, bym2_data$y,
+                     'Poisson + ICAR model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ```
 
 #### RE model
 
 ```{r}
-y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
-ppc_dens_overlay(brooklyn_geodata$count, y_rep_re) +
-                 ggtitle("Posterior Predictive Check: Poisson RE model")
+ppc_y_yrep_overlay(y_rep_re, bym2_data$y,
+                     'Poisson + RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ```
+
+## Discussion
+
+The BYM2 model and the Poisson + RE model provide similar estimates; however the BYM2 model provides additional information
+about the spatial vs. non-spatial structure of the variance.

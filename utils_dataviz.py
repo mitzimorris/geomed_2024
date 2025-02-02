@@ -34,7 +34,7 @@ def plot_icar_corr_matrix(draws: np.ndarray, title: str, size: tuple[int, int]) 
     p = (
         p9.ggplot(corr_df, p9.aes(x='Var1', y='Var2', fill='Correlation'))
         + p9.geom_tile()
-        + p9.scale_fill_gradient2(low='blue', mid='white', high='red', midpoint=0)
+        + p9.scale_fill_gradient2(low='darkblue', mid='white', high='darkorange', midpoint=0)
         + p9.theme_minimal()
         + p9.theme(
             figure_size=size,

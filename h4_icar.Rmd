@@ -87,7 +87,7 @@ census tracts, respectively.
 *This is a problem for the ICAR model, which operates on a fully connected graph (single component)*
 
 ```{r}
-nyc_nbs = poly2nb(nyc_geodata, queen=FALSE)
+nyc_nbs = poly2nb(nyc_geodata)
 summary(nyc_nbs)
 table(n.comp.nb(nyc_nbs)$comp.id)
 ```
@@ -98,7 +98,7 @@ table(n.comp.nb(nyc_nbs)$comp.id)
 
 ```{r}
 brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
-brooklyn_nbs = poly2nb(brooklyn_geodata, queen=FALSE)
+brooklyn_nbs = poly2nb(brooklyn_geodata)
 brooklyn_coords = st_coordinates(st_centroid(brooklyn_geodata['geometry']))
 plot(st_geometry(brooklyn_geodata), col='skyblue')
 plot(brooklyn_nbs, coords=brooklyn_coords, add=TRUE, pch=20, cex=0.6)

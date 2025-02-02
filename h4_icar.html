@@ -3668,19 +3668,18 @@ color: var(--quarto-text-muted);
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> geopandas <span class="im">as</span> gpd</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> libpysal <span class="im">as</span> sa</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> libpysal</span>
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> splot <span class="im">as</span> splt</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> splot.libpysal <span class="im">import</span> plot_spatial_weights </span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotnine <span class="im">as</span> p9</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>matplotlib inline</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> cmdstanpy <span class="im">import</span> CmdStanModel, cmdstan_path, cmdstan_version</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> warnings</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">&#39;ignore&#39;</span>)</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> utils_bym2 <span class="im">import</span> get_scaling_factor, nbs_to_adjlist</span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> utils_dataviz <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> splot.libpysal <span class="im">import</span> plot_spatial_weights </span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotnine <span class="im">as</span> p9</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>matplotlib inline</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> cmdstanpy <span class="im">import</span> CmdStanModel, cmdstan_path, cmdstan_version</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> warnings</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">&#39;ignore&#39;</span>)</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> utils_bym2 <span class="im">import</span> get_scaling_factor, nbs_to_adjlist</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> utils_dataviz <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="op">=</span> gpd.read_file(os.path.join(<span class="st">&#39;data&#39;</span>, <span class="st">&#39;nyc_study.geojson&#39;</span>))</span>
@@ -3712,7 +3711,7 @@ color: var(--quarto-text-muted);
 <p><em>This is a problem for the ICAR model, which operates on a fully connected graph (single component)</em></p>
 <p><strong>Python</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>w_nyc_nbs <span class="op">=</span> sa.weights.Rook.from_dataframe(nyc_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>w_nyc_nbs <span class="op">=</span> libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;number of components: </span><span class="sc">{</span>w_nyc_nbs<span class="sc">.</span>n_components<span class="sc">}</span><span class="ss">&#39;</span>)</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;islands? </span><span class="sc">{</span>w_nyc_nbs<span class="sc">.</span>islands<span class="sc">}</span><span class="ss">&#39;</span>)</span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;max number of neighbors per node: </span><span class="sc">{</span>w_nyc_nbs<span class="sc">.</span>max_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span>
@@ -3720,7 +3719,7 @@ color: var(--quarto-text-muted);
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>nyc_nbs <span class="ot">=</span> <span class="fu">poly2nb</span>(nyc_geodata, <span class="at">queen=</span><span class="cn">FALSE</span>)</span>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>nyc_nbs <span class="ot">=</span> <span class="fu">poly2nb</span>(nyc_geodata)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(nyc_nbs)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(<span class="fu">n.comp.nb</span>(nyc_nbs)<span class="sc">$</span>comp.id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -3731,7 +3730,7 @@ color: var(--quarto-text-muted);
 <p><strong>Python</strong></p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>brooklyn_geodata <span class="op">=</span> nyc_geodata[nyc_geodata[<span class="st">&#39;BoroName&#39;</span>]<span class="op">==</span><span class="st">&#39;Brooklyn&#39;</span>].reset_index(drop<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs <span class="op">=</span> sa.weights.Rook.from_dataframe(brooklyn_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs <span class="op">=</span> libpysal.weights.Queen.from_dataframe(brooklyn_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>plot_spatial_weights(brooklyn_nbs, brooklyn_geodata) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
@@ -3743,7 +3742,7 @@ color: var(--quarto-text-muted);
 <p><strong>R</strong></p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>brooklyn_geodata <span class="ot">=</span> nyc_geodata[nyc_geodata<span class="sc">$</span>BoroName<span class="sc">==</span><span class="st">&#39;Brooklyn&#39;</span>, ]</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs <span class="ot">=</span> <span class="fu">poly2nb</span>(brooklyn_geodata, <span class="at">queen=</span><span class="cn">FALSE</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>brooklyn_nbs <span class="ot">=</span> <span class="fu">poly2nb</span>(brooklyn_geodata)</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>brooklyn_coords <span class="ot">=</span> <span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(brooklyn_geodata[<span class="st">&#39;geometry&#39;</span>]))</span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">st_geometry</span>(brooklyn_geodata), <span class="at">col=</span><span class="st">&#39;skyblue&#39;</span>)</span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(brooklyn_nbs, <span class="at">coords=</span>brooklyn_coords, <span class="at">add=</span><span class="cn">TRUE</span>, <span class="at">pch=</span><span class="dv">20</span>, <span class="at">cex=</span><span class="fl">0.6</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>

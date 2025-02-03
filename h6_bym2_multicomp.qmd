@@ -1,0 +1,785 @@
+---
+title: "Extending the BYM2 Model for Disconnected Graphs"
+format:
+  html:
+    css: theming/quarto_styles.css 
+    syntax-definitions:
+      - theming/stan.xml
+    embed-resources: true
+    toc: true
+    toc-location: left
+    grid:
+      body-width: 1000px
+execute:
+  eval: false
+  keep-ipynb: true
+---
+
+
+## Notebook setup
+
+### Libraries and helper functions.
+
+**Python**
+```{python}
+# import all libraries used in this notebook
+import os
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import libpysal
+import matplotlib
+from splot.libpysal import plot_spatial_weights 
+%matplotlib inline
+
+import warnings
+warnings.filterwarnings('ignore')
+
+from cmdstanpy import CmdStanModel, cmdstan_path, cmdstan_version
+
+from utils_bym2 import get_scaling_factor, nbs_to_adjlist
+from utils_nyc_map import *
+from utils_dataviz import *
+```
+
+**R**
+```{r}
+library(ggplot2)
+library(igraph)
+library(Matrix)
+library(parallel)
+library(sf)
+library(spdep) |> suppressPackageStartupMessages()
+library(tidyverse) |> suppressPackageStartupMessages()
+
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(loo)
+cores = floor(parallel::detectCores() / 2)
+source("utils_bym2.R")
+source("utils_dataviz.R")
+source("utils_nyc_map.R")
+```
+
+## The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018
+
+## A quick review of neighbor graphs
+
+In the context of an areal map, the neighbor graph is used to model spatial relationships between
+regions (such as states, districts, or census tracts). Each region is represented as a node, and an
+edge is drawn between two nodes if their corresponding regions share a common boundary.
+Edges have no direction, i.e., an edge between $i$ and $j$ implies
+that $i$ is a neighbor of $j$ and $j$ is a neighbor of $i$.
+
+*Components* represent groups of regions that are connected through shared boundaries, either
+directly or indirectly.  The size of a component is the number of nodes in it.  An island, or
+singleton, is a component of size 1; in this notebook we distinguish between *connected components*
+of size 2 or greater and *singletons*.
+
+If it is possible to find a path (series of edges) which connect every region in the graph to every
+other region in the graph, then the graph is *fully connected*, i.e., it consists of a single
+component.  For example, at the state level, the neighbor graph of the 48 continental states of the
+U.S. is fully connected, but the graph of all 50 U.S. states and territories is *disconnected*;
+it consists of a connected component and several islands.
+
+## The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018
+
+The ICAR model requires that the neighbor graph is fully connected for two reasons:
+
+* The joint distribution is computed from the pairwise differences between a node and its neighbors;
+singleton nodes have no neighbors and are therefore undefined.
+
+* Even if the graph doesn't have any singleton nodes, when the graph has multiple connected components
+a sum-to-zero constraint on the entire vector fails to properly identify the model.
+
+As the census tract map of NYC shows,
+if the metric used to compute spatial adjacency is direct overland adjacency,
+then the neighbor graph of New York City is has several connected components and a few singleton nodes.
+
+In order to apply the BYM2 model to the full NYC dataset, it is necessary to either:
+
+* Edit the neighbor graph to create a fully connected single component for NYC, or
+* Extend the BYM2 model to account for disconnected components and singleton nodes.
+
+For the analysis in Morris et al, 2019, we edited the neighbor graph by adding
+enough edges to create a single connected component.
+
+### Freni-Sterrantion recommendations
+
+In this notebook, we instead extend the BYM2 model to account for disconnected graphs and islands,
+following the recommendations from
+[A note on intrinsic Conditional Autoregressive models for disconnected graphs](https://arxiv.org/abs/1705.04854),
+Freni-Sterrantino et.al. 2018. 
+
+* Component nodes are given the BYM2 prior
+* Singleton nodes (islands) are given a standard Normal prior
+* Compute per-connected component scaling factor
+* Impose a sum-to-zero constraint on each connected component
+
+
+## Stan Implementation: `bym2_multicomp.stan`
+
+The BYM2_multicomp model requires more additional data inputs: the number of components, their size,
+scaling factor, and the number of singleton nodes.  Because neighbor graph uses the spatial
+dataframe row indices as the node labels, it is critical that the order of all data inputs matches
+the dataframe ordering, i.e., that for any row $i$ in the spatial dataframe, the $i^{th}$ element of
+the observed outcome `y` and design matrix `xs` match that row, and the node ids used in the
+`neighbors` edge pairs array.  Data preprocessing consists of the following operations, in order:
+
+* Create the neighbor graph from the spatial dataframe; add graph component labels to the dataframe.
+
+* Create mapping from component labels to component sizes.
+
+* Reorder the spatial dataframe so that it can be sliced by component, with singleton nodes last,
+by using the component id as the sort key and the component size, descending, as the sort order.
+
+* Rebuild the neighbor graph so the its indices line up with the spatial dataframe row index.
+
+We have written a series of helper functions in R and Python to do this
+which are in files `utils_nyc_map.py` and `utils_nyc_map.R`.
+For further details on editing spatial data structures see the notebook on spatial data:
+[Spatial Data Analysis in Python and R](https://github.com/mitzimorris/geomed_2024/blob/main/h2_spatial_data.qmd).
+
+By reordering the spatial data frame by component membership, with singleton nodes at the end of the
+dataframe, we can easily implement both the component-wise sum to zero constraint and compute the
+spatial effects for connected nodes, using Stan's
+[range indexing](https://mc-stan.org/docs/reference-manual/expressions.html#language-multi-indexing.section)
+expressions, which return slices of an array.  See the Stan User's Guide, section
+[slicing with range indexes](https://mc-stan.org/docs/stan-users-guide/multi-indexing.html#slicing-with-range-indexes)
+for details.
+
+### Changes to the `data` block
+
+The model needs a few more pieces of information:
+the number of connected components, the size and scaling factor for each.
+
+```stan
+data {
+  ...
+  int<lower=0, upper=N> N_components;
+  array[N_components] int<lower=1, upper=N> component_sizes;
+  vector<lower=0>[N_components] scaling_factors;  // vector instead of a scalar
+
+  // neighbor graph structure
+  int<lower = 0> N_edges;  // number of neighbor pairs
+  array[2, N_edges] int<lower = 1, upper = (sum(component_sizes))> neighbors;  // was upper = N
+}
+```
+
+### Changes to the `transformed data` block
+
+First we check that the input data is consistent.
+
+```stan
+transformed data {
+  ...
+  int N_connected = sum(component_sizes);
+  int N_singletons = N - N_connected;
+  if (N_singletons < 0) {
+    reject("Inconsistent inputs: sum(component_sizes) > N");
+  }
+  ...
+```
+
+Then we use component sizes to compute the begin and end indices needed to slice the spatial vector `phi`.
+At the same time, we create vector `taus`, the per-region scaling factor.
+
+```stan
+  for (n in 1:N_components) {
+    taus[idx: idx + component_sizes[n] - 1]
+      = rep_array(scaling_factors[n], idx, component_sizes[n]);
+    component_idxs[n, 1] = idx;
+    component_idxs[n, 2] = idx + component_sizes[n] - 1;
+    idx += component_sizes[n];
+  }
+```
+
+### Changes to the `parameters` block:  constraining transforms
+
+In the BYM2 model for a fully connected graph the sum-to-zero constraint on `phi`
+is implemented directly by declaring `phi` to be a `sum_to_zero_vector`, which is a
+[constrained parameter type](https://mc-stan.org/docs/reference-manual/transforms.html#variable-transforms.chapter).
+The declaration:
+
+```stan
+  sum_to_zero_vector[N] phi;  // spatial effects
+```
+
+creates a *constrained* variable of length $N$, with a corresponding unconstrained variable of length $N-1$.
+
+For the BYM2_multicomp model, we need to do declare the *unconstrained* parameter vector `phi_raw`
+and the constraining transform, which is applied component-wise, to slices of `phi_raw`.
+The number of connected components is $N\_components$, therefore the length of vector `phi_raw` is
+$N - N\_components$.
+
+```stan
+  vector[N - N_components] phi_raw;  // spatial effects
+```
+
+In the `transformed parameters` block, we apply the constraining transform.
+
+```stan
+  vector[N_connected] phi = zero_sum_components_lp(phi_raw, component_idxs, component_sizes);
+```
+
+In the `functions` block, we define two functions
+
+* `zero_sum_constrain_lp`: the constraining transform, following the `zero_sum_vector` implementation.
+
+```stan
+  /**
+   * Constrain sum-to-zero vector
+   *
+   * @param y unconstrained zero-sum parameters
+   * @return vector z, the vector whose slices sum to zero
+   */
+  vector zero_sum_constrain_lp(vector y) {
+    int N = num_elements(y);
+    vector[N + 1] z = zeros_vector(N + 1);
+    real sum_w = 0;
+    for (ii in 1:N) {
+      int i = N - ii + 1; 
+      real n = i;
+      real w = y[i] * inv_sqrt(n * (n + 1));
+      sum_w += w;
+      z[i] += sum_w;     
+      z[i + 1] -= w * n;    
+    }
+    return z;
+  }
+```
+
+* `zero_sum_components_lp`: slices vector `phi` by component, applies constraining transform to each.
+
+```stan
+functions {
+  /**
+   * Component-wise constrain sum-to-zero vectors
+   *
+   * @param phi unconstrained vector of zero-sum slices
+   * @param idxs component start and end indices
+   * @param sizes component sizes
+   * @return vector phi_ozs, the vector whose slices sum to zero
+   */
+  vector zero_sum_components_lp(vector phi,
+                                array[ , ] int idxs,
+                                array[] int sizes) {
+    vector[sum(sizes)] phi_ozs;
+    int idx_phi = 1;
+    int idx_ozs = 1;
+    for (i in 1:size(sizes)) {
+      phi_ozs[idx_ozs : idx_ozs + sizes[i] - 1] =
+        zero_sum_constrain_lp(segment(phi, idx_phi, sizes[i] - 1));
+      idx_phi += sizes[i] - 1;
+      idx_ozs += sizes[i];
+    }
+    return phi_ozs;
+  }
+```
+
+### Putting it all together:  `bym2_multicomp.stan`
+
+**Python**
+```{python}
+bym2_multicomp_file = os.path.join('stan', 'bym2_multicomp.stan')
+
+with open(bym2_multicomp_file, 'r') as file:
+    contents = file.read()
+    print(contents)
+```
+
+**R**
+```{r}
+bym2_multicomp_file = file.path('stan', 'bym2_multicomp.stan')
+cat(readLines(bym2_multicomp_file), sep="\n")
+```
+
+
+## Fitting the BYM2_multicomp Model to the NYC Dataset
+
+### Data Assembly
+
+We need to assemble a dictionary or list for all variables declared in the model's data block.
+These are:
+
+```stan
+data {
+  int<lower=0> N;
+  array[N] int<lower=0> y; // count outcomes
+  vector<lower=0>[N] E; // exposure
+  int<lower=1> K; // num covariates
+  matrix[N, K] xs; // design matrix
+
+  int<lower=0, upper=N> N_components;
+  array[N_components] int<lower=1, upper=N> component_sizes;
+  vector<lower=0>[N_components] scaling_factors;
+  int<lower=0, upper=N> N_singletons;
+
+  // neighbor graph structure
+  int<lower = 0> N_edges;  // number of neighbor pairs
+  array[2, N_edges] int<lower = 1, upper = (N - N_singletons)> neighbors;  // columnwise adjacent
+}
+```
+
+#### Load the NYC dataset
+
+**Python**
+```{python}
+nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
+nyc_geodata.columns
+```
+
+**R**
+```{r}
+nyc_geodata = st_read("data/nyc_study.geojson")
+names(nyc_geodata)
+```
+
+#### NYC neighbor graph cleanup
+
+Create the neighbors graph and plot the map.  This shows a set of spurious connections
+between Manhattan and Brooklyn and Queens, (likely due to bridges and tunnels).
+
+
+**Python**
+```{python}
+nyc_nbs_all = libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col='geometry')
+plot_spatial_weights(nyc_nbs_all, nyc_geodata)
+```
+
+**R**
+```{r}
+nyc_nbs_all = poly2nb(nyc_geodata)
+nyc_coords = st_coordinates(st_centroid(nyc_geodata['geometry']))
+plot(st_geometry(nyc_geodata), col='skyblue')
+plot(nyc_nbs_all, coords=nyc_coords, add=TRUE, pch=20, cex=0.6)
+```
+
+In order to ensure that the spatial graph accurately reflects real‐world connectivity,
+we have written a helper function to disconnect Manhattan
+from Queens and Brooklyn.  However, as Queens and Brooklyn are in fact the same land mass
+(Long Island), we don't try to disconnect Brooklyn from Queens.
+
+To check that the neighbor graph is correct, we replot it.
+
+**Python**
+```{python}
+nyc_nbs = nyc_cleanup(nyc_nbs_all, nyc_geodata)
+plot_spatial_weights(nyc_nbs, nyc_geodata)
+```
+
+**R**
+```{r}
+nyc_components = nyc_sort_by_comp_size(nyc_geodata)
+nyc_nbs = nyc_components$nb
+nyc_gdf = nyc_components$sf_sorted
+sizes = nyc_components$component_sizes
+
+nyc_coords = st_coordinates(st_centroid(nyc_gdf$geometry[1:length(nyc_nbs)]))
+plot(st_geometry(nyc_gdf), col='skyblue')
+plot(nyc_nbs, coords=nyc_coords, add=TRUE, pch=20, cex=0.6)
+```
+
+#### Arranging the dataset by component
+
+To reorder the spatial dataframe so that it can be sliced by component, with singleton nodes last,
+and rebuild the corresponding neighbor graph, we have written function `nyc_sort_by_comp_size`,
+which takes into account the necessity of correcting for problems in the NYC geodata.
+A general version for maps where the spatial graph lines up with real-world connectivity,
+this function could be simplified.
+
+**Python**
+```{python}
+(nyc_nbs, nyc_gdf, sizes) = nyc_sort_by_comp_size(nyc_geodata)
+plot_spatial_weights(nyc_nbs, nyc_gdf)
+```
+```{python}
+nyc_gdf[['NTAName', 'comp_id', 'comp_size']].head(4)
+```
+```{python}
+nyc_gdf[['NTAName', 'comp_id', 'comp_size']].tail(4)
+```
+
+**R**
+```{r}
+nyc_components = nyc_sort_by_comp_size(nyc_geodata)
+nyc_nbs = nyc_components$nb
+nyc_gdf = nyc_components$sf_sorted
+sizes = nyc_components$component_sizes
+
+nyc_coords = st_coordinates(st_centroid(nyc_gdf['geometry']))
+plot(st_geometry(nyc_gdf), col='skyblue')
+plot(nyc_nbs, coords=nyc_coords, add=TRUE, pch=20, cex=0.6)
+```
+
+#### Get edgeset
+
+**Python**
+```{python}
+nyc_nbs_adj = nbs_to_adjlist(nyc_nbs)
+nyc_nbs_adj
+```
+
+**R**
+```{r}
+nyc_nbs_adj = nbs_to_adjlist(nyc_nbs)
+nyc_nbs_adj[1:2, 1:10]
+```
+
+#### Get regression inputs
+
+**Python**
+```{python}
+N = nyc_gdf.shape[0]
+y = nyc_gdf['count'].astype('int')
+E = nyc_gdf['kid_pop'].astype('int')
+K = 4
+
+design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
+design_mat = nyc_gdf[design_vars].to_numpy()
+design_mat[:, 1] = np.log(design_mat[:, 1])
+design_mat[:, 2] = np.log(design_mat[:, 2])
+pd.DataFrame(data=design_mat).describe()
+```
+
+**R**
+```{r}
+N = nrow(nyc_gdf)
+y = as.integer(nyc_gdf$count)
+E = as.integer(nyc_gdf$kid_pop)
+K = 4
+
+design_mat <- as.data.frame(nyc_gdf) %>%
+  select(pct_pubtransit, med_hh_inc, traffic, frag_index) %>%
+  mutate(med_hh_inc = log(med_hh_inc),
+         traffic = log(traffic))
+summary(design_mat)
+```
+
+#### Compute number of components, sizes, and number of singleton nodes
+
+**Python**
+```{python}
+component_sizes = [x for x in sizes if x > 1]
+N_components = len(component_sizes)
+print("N_components ", N_components, " component_sizes ", component_sizes)
+print("N connected ", np.sum(component_sizes))
+```
+
+**R**
+```{r}
+component_sizes <- sizes[sizes > 1]  # Filter sizes greater than 1
+N_components <- length(component_sizes)
+cat("N_components:", N_components, "component_sizes:", component_sizes, "\n")
+cat("N connected:", sum(component_sizes), "\n")
+```
+
+#### Compute per-component scaling factors
+
+**Python**
+```{python}
+scaling_factors = np.ones(N_components)
+for i in range(N_components):
+    comp_gdf = nyc_gdf[nyc_gdf['comp_id'] == i].reset_index(drop=True)
+    comp_nbs = libpysal.weights.Queen.from_dataframe(comp_gdf, geom_col='geometry')
+    component_w = libpysal.weights.W(comp_nbs.neighbors, comp_nbs.weights)
+    scaling_factors[i] = get_scaling_factor(component_w)
+
+print(scaling_factors)
+```
+
+**R**
+```{r}
+scaling_factors <- rep(1, N_components)  # Initialize vector of ones
+
+for (i in seq_len(N_components)) {
+    comp_gdf <- nyc_gdf[nyc_gdf$comp_id == i, ]  # Select component i
+    comp_nbs <- poly2nb(comp_gdf)  # Create Queen contiguity neighbors
+    scaling_factors[i] <- get_scaling_factor(comp_nbs)  # Compute scaling factor
+}
+
+print(scaling_factors)
+```
+
+#### Assemble the input data into a Python dict, R list
+
+**Python**
+```{python}
+# assemble nyc_data_dict
+bym2_data = {
+    'N':N,
+    'y':y,
+    'E':E,
+    'K':K,
+    'xs':design_mat,
+    'N_components':N_components,
+    'component_sizes': component_sizes,
+    'N_edges':nyc_nbs_adj.shape[1],
+    'neighbors':nyc_nbs_adj,
+    'scaling_factors': scaling_factors
+}
+```
+
+**R**
+```{r}
+bym2_data <- list(
+  N = N,
+  y = y,
+  E = E,
+  K = 4,
+  xs = design_mat,
+  N_components = N_components,
+  component_sizes = component_sizes,
+  N_edges = ncol(nyc_nbs_adj),
+  neighbors = nyc_nbs_adj,
+  scaling_factors = scaling_factors
+)
+```
+
+### Model compilation
+
+**Python**
+```{python}
+bym2_multicomp_mod = CmdStanModel(stan_file=bym2_multicomp_file)
+```
+
+**R**
+```{r}
+bym2_multicomp_mod = CmdStanModel(bym2_multicomp_file)
+```
+
+### Run the NUTS-HMC sampler, summarize results
+
+**Python**
+```{python}
+bym2_multicomp_fit = bym2_multicomp_mod.sample(data=bym2_data, iter_warmup=3000, iter_sampling=2000)
+
+bym2_multicomp_summary = bym2_multicomp_fit.summary()
+bym2_multicomp_summary.round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
+```
+
+**R**
+```{r}
+bym2_multicomp_fit = bym2_multicomp_mod$sample(data=bym2_data, parallel_chains=cores,
+		   iter_warmup=3000, iter_sampling=2000, refresh=0)
+bym2_multicomp_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho')) 
+```
+
+## Model Checking
+
+### Visualizing the ICAR component
+
+To see the spatial structure of the data, we plot the covariance matrix of `phi`.
+We expect neighboring regions to be correlated, and distant regions to be uncorrelated.
+To do this, we have written a helper function, `plot_icar_corr_matrix`,
+which plots just the upper half of the correlation matrix of `phi`,
+with red indicating positive correlation and blue indicating negative correlation.
+The census tracts are listed roughly in geographic order, from north-to-south and
+east-to-west, thus adjacent elements along the diagonal are spatially adjacent.
+
+**Python**
+```{python}
+phi_multicomp = bym2_multicomp_fit.stan_variable("phi")
+corr_plot = plot_icar_corr_matrix(phi_multicomp, 'BYM2 spatial correlation', (10, 10))
+corr_plot
+```
+
+**R**
+```{r}
+phi_multicomp <- as_draws_matrix(bym2_multicomp_fit$draws("phi"))
+plot_icar_corr_matrix(phi_multicomp, 'BYM2 spatial correlation')
+```
+
+Plotting the entire correlation matrix puts all covariances on the same scale.
+Plotting the component-by-component correlations more clearly shows the spatial structure.
+The first three components correspond to Brooklyn and Queens (minus the Rockaways),
+Manhattan (minus Roosevelt Island), and the Bronx (minus City Island), respectively.
+
+**Python**
+```{python}
+corr_plots = []
+start_idx = 1
+for i in range(N_components):
+    end_idx = component_sizes[i] + start_idx
+    phi_slice = phi_multicomp[ : , start_idx : end_idx ]
+    corr_plots.append(plot_icar_corr_matrix(phi_slice,
+        "Spatial Correlation vector phi_"+str(i)+"\nBYM2 multicomp",
+	size=(10,10)))
+```
+
+```{python}
+# Brooklyn and Queens (mainland)
+corr_plots[0]
+```    
+```{python}
+# Manhattan
+corr_plots[1]
+```    
+```{python}
+# Bronx
+corr_plots[2]
+```    
+
+**R**
+```{r}
+corr_plots <- list()
+start_idx <- 1
+for (i in seq_len(N_components)) {
+    end_idx <- start_idx + component_sizes[i] - 1
+    phi_slice <- phi_multicomp[, start_idx:end_idx]
+    corr_plots[[i]] <- plot_icar_corr_matrix(phi_slice, 
+        paste("Spatial Correlation vector phi_", i, "\nBYM2 multicomp", sep = ""))
+    start_idx <- end_idx + 1
+}
+```
+
+```{r}
+# Brooklyn and Queens (mainland)
+corr_plots[0]
+```    
+```{r}
+# Manhattan
+corr_plots[1]
+```    
+```{r}
+# Bronx
+corr_plots[2]
+```    
+
+### Posterior Predictive Checks
+
+**Python**
+```{python}
+y_rep_multicomp = bym2_multicomp_fit.stan_variable("y_rep")
+print("PPC BYM2\n", ppc_central_interval(y_rep_multicomp, bym2_data['y']))
+
+ppc_plot = ppc_y_yrep_overlay(y_rep_multicomp, bym2_data['y'],
+                                'BYM2 multicomp model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
+ppc_plot
+```
+
+**R**
+```{r}
+y_rep_multicomp <- as_draws_matrix(bym2_multicomp_fit$draws("y_rep"))
+cat("PPC BYM2_multicomp")
+ppc_central_interval(y_rep_multicomp, bym2_data$y)
+
+ppc_y_yrep_overlay(y_rep_multicomp, bym2_data$y,
+                     'BYM2 multicomp model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
+```
+
+## Model Comparison
+
+With the BYM2_multicomp model, we can use all of the NYC dataset to estimate the regression co-efficients of interest *and* account for the amount of spatial variance and identify strongly correlated regions.
+We compare this fit with the Poisson + RE model, which also accounts for the overdispersed nature of the data.
+
+**Python**
+```{python}
+pois_re_mod = CmdStanModel(stan_file=os.path.join('stan', 'poisson_re.stan'))
+pois_re_fit = pois_re_mod.sample(data=bym2_data)
+pois_re_summary = pois_re_fit.summary()
+pois_re_summary.round(2).loc[
+  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
+```
+
+**R**
+```{r}
+pois_re_mod = cmdstan_model(stan_file=file.path('stan', 'poisson_re.stan')) 
+pois_re_fit = pois_re_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
+pois_re_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma'))
+```
+
+### Poisson + RE Model PPC coverage, plots
+
+**Python**
+```{python}
+y_rep_re = pois_re_fit.stan_variable("y_rep")
+print("PPC Poisson + RE\n", ppc_central_interval(y_rep_re, bym2_data['y']))
+
+ppc_plot = ppc_y_yrep_overlay(y_rep_re, bym2_data['y'],
+                                'Poisson + RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
+ppc_plot
+```
+
+**R**
+```{r}
+y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
+cat("PPC Poisson + RE")
+ppc_central_interval(y_rep_re, bym2_data$y)
+
+ppc_y_yrep_overlay(y_rep_re, bym2_data$y,
+                     'Poisson + RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
+```
+
+## Discussion
+
+The BYM2_multicomp model requires a few more kinds of input data to identify the number and size
+of the disconnected components and singletons.
+It also requires that the data be organized by component, in order to allow for efficient computation.
+This, in turn, increases the number of steps required to assemble the data inputs.
+
+Assembling the spatial effects vector `phi` from a series of ICAR components, each of which
+has a sum-to-zero constraint for identifiability, requires a by-hand implementation of the
+constraining transform for the sum-to-zero vector; this increases the size and complexity
+of the model.
+
+However, the alternative is creating a spatial map which doesn't reflect the true
+spatial adjacency structure of the data.
+This was done for the 2019 analysis of Morris et al.
+The results of the regression are reported in Table 4:
+
+## Parameter Estimates from BYM2 Model 
+
+| Parameter       | Mean  | SE Mean | SD   | 2.5%  | 97.5% | N_eff | R-hat |
+|--------------- |------:|--------:|-----:|------:|------:|------:|------:|
+| Intercept      | -3.5  | 0.0     | 0.5  | -4.5  | -2.5  | 1255  | 1.0   |
+| Commute        |  0.5  | 0.0     | 0.2  |  0.2  |  0.9  |  777  | 1.0   |
+| Log Income     | -0.1  | 0.0     | 0.0  | -0.2  | -0.0  | 1204  | 1.0   |
+| Std Frag Index |  0.1  | 0.0     | 0.0  |  0.0  |  0.1  | 1527  | 1.0   |
+| Log Traffic    |  0.0  | 0.0     | 0.0  | -0.0  |  0.0  | 2551  | 1.0   |
+| Rho            |  0.4  | 0.0     | 0.1  |  0.3  |  0.5  |  219  | 1.0   |
+| Sigma          |  0.8  | 0.0     | 0.0  |  0.8  |  0.9  |  301  | 1.0   |
+
+
+
+>>> Because the commute data is recorded as a percentage between 0 and 1
+and not on the scale 0 to 100, it is necessary to divide
+the "pct_commute" regression coefficient by 100 in order to properly
+interpret its contribution.
+Thus for every percentage point increase in population commuting by means
+other than a private vehicle, there was a exp(0.005) = 0.5% increase in
+the expected count of youth pedestrian injuries, controlling for
+income, vehicular traffic, social fragmentation, and population.  The
+credible interval ranged from a exp(0.002) = 0.2% to exp(0.009) = 0.9%
+increase in pedestrian injuries per percentage point increase in
+on-foot commuters.  There was a 1.2% decrease in youth pedestrian
+injuries per 10% increase in median household income.  Social
+fragmentation was also significantly associated with youth pedestrian
+injuries, with an exp(0.1) = 10% increase in youth pedestrian injuries
+per standard deviation increase in the combined index (i.e. vacancy,
+non-owner occupied housing, recent moves, and householder living
+alone), controlling for other model covariates.  The credible interval
+for the effect of daily traffic included zero in our fully adjusted
+model after controlling for social fragmentation and
+pedestrian/bicyclist/public transit commute rates.
+The parameter sigma, the overall variance of the combined
+random effects term was exp(0.8) = 2.2,  indicating
+substantial overall variance.
+Nearly half of that variance, parameter rho,
+was spatially structured exp(0.4) = 49%.
+
+How does this compare with the estimates here?
+
+**Python**
+```{python}
+bym2_multicomp_summary.round(2).loc[
+  ['beta_intercept', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
+```
+
+**R**
+```{r}
+bym2_multicomp_fit$print(variables = c('beta_intercept', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho')) 
+```
+

@@ -47,24 +47,6 @@ nyc_cleanup <- function(nb, sf_data) {
   return(nb)
 }
 
-#' Connect two regions in neighbor list
-#' 
-#' @param nb Neighbor list object
-#' @param region_i First node ID
-#' @param region_j Second node ID
-#' @return Modified neighbor list
-connect_nbs <- function(nb, region_i, region_j) {
-  # Add bidirectional connection if it doesn't exist
-  if (!region_j %in% nb[[region_i]]) {
-    # Connect i -> j
-    nb[[region_i]] <- c(nb[[region_i]], region_j)
-    
-    # Connect j -> i
-    nb[[region_j]] <- c(nb[[region_j]], region_i)
-  }
-  
-  return(nb)
-}
 
 #' Process NYC census tract data
 #' 
@@ -103,10 +85,18 @@ nyc_sort_by_comp_size <- function(nyc_sf) {
   
   # Get sorted component sizes
   component_sizes <- sort(table(nyc_sf_sorted$comp_id), decreasing = TRUE)
-  
+
+  # Remove zero entries from nbs
+  singletons <- length(component_sizes[component_sizes == 1])
+  nyc_nbs <- nyc_nb_clean[1:(length(nyc_nb_clean)-singletons)]
+  attr(nyc_nbs, "region.id") <- attr(nyc_nbs, "region.id")[1:(length(nyc_nbs))]
+  class(nyc_nbs) <- "nb"  
+    
+
   return(list(
-    nb = nyc_nb_clean,
+    nb = nyc_nbs,
     sf_sorted = nyc_sf_sorted,
     component_sizes = as.vector(component_sizes)
   ))
-} 
+}
+

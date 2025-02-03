@@ -194,7 +194,9 @@ In the `transformed parameters` block, we apply the constraining transform.
   vector[N_connected] phi = zero_sum_components_lp(phi_raw, component_idxs, component_sizes);
 ```
 
-In the `functions` block, we define two functions
+#### Adding a `functions` block for the constraining transform
+
+This transform is implemented by two functions in the `functions` block.
 
 * `zero_sum_constrain_lp`: the constraining transform, following the `zero_sum_vector` implementation.
 
@@ -224,7 +226,6 @@ In the `functions` block, we define two functions
 * `zero_sum_components_lp`: slices vector `phi` by component, applies constraining transform to each.
 
 ```stan
-functions {
   /**
    * Component-wise constrain sum-to-zero vectors
    *

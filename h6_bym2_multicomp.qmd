@@ -64,26 +64,24 @@ source("utils_nyc_map.R")
 
 ## The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018
 
-## A quick review of neighbor graphs
+### Graph Connectivity and Modeling Consequences
 
-In the context of an areal map, the neighbor graph is used to model spatial relationships between
-regions (such as states, districts, or census tracts). Each region is represented as a node, and an
-edge is drawn between two nodes if their corresponding regions share a common boundary.
+Neighbor graphs are used to model spatial relationships between areal regions
+(such as states, districts, or census tracts). Nodes in the graph correspond to regions
+and edges connect nodes whose corresponding regions share a common point or boundary line.
 Edges have no direction, i.e., an edge between $i$ and $j$ implies
 that $i$ is a neighbor of $j$ and $j$ is a neighbor of $i$.
 
-*Components* represent groups of regions that are connected through shared boundaries, either
-directly or indirectly.  The size of a component is the number of nodes in it.  An island, or
-singleton, is a component of size 1; in this notebook we distinguish between *connected components*
+*Components* represent groups of regions that are connected, either by a direct edge or a series of edges.
+The size of a component is the number of nodes in it.
+An island, or singleton, is a component of size 1, so we must distinguish between *connected components*
 of size 2 or greater and *singletons*.
 
-If it is possible to find a path (series of edges) which connect every region in the graph to every
-other region in the graph, then the graph is *fully connected*, i.e., it consists of a single
+If it is possible to find a path (series of edges) which connects any region in the graph to any
+other region, then the graph is *fully connected*, i.e., it consists of a single
 component.  For example, at the state level, the neighbor graph of the 48 continental states of the
 U.S. is fully connected, but the graph of all 50 U.S. states and territories is *disconnected*;
 it consists of a connected component and several islands.
-
-## The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018
 
 The ICAR model requires that the neighbor graph is fully connected for two reasons:
 
@@ -93,21 +91,20 @@ singleton nodes have no neighbors and are therefore undefined.
 * Even if the graph doesn't have any singleton nodes, when the graph has multiple connected components
 a sum-to-zero constraint on the entire vector fails to properly identify the model.
 
-As the census tract map of NYC shows,
-if the metric used to compute spatial adjacency is direct overland adjacency,
-then the neighbor graph of New York City is has several connected components and a few singleton nodes.
-
+As the census tract map of New York City shows,
+when the metric used to compute spatial adjacency is a shared geographic point,
+the neighbor graph of NYC has several connected components and a few singleton nodes.
 In order to apply the BYM2 model to the full NYC dataset, it is necessary to either:
 
-* Edit the neighbor graph to create a fully connected single component for NYC, or
-* Extend the BYM2 model to account for disconnected components and singleton nodes.
+* Edit the neighbor graph to create a fully connected single component for NYC,
+as was done for the 2019 analysis of Morris et al.
 
-For the analysis in Morris et al, 2019, we edited the neighbor graph by adding
-enough edges to create a single connected component.
+* Extend the BYM2 model to account for disconnected components and singleton nodes - continue reading!
 
-### Freni-Sterrantion recommendations
 
-In this notebook, we instead extend the BYM2 model to account for disconnected graphs and islands,
+### Extending the BYM2 Model in Stan
+
+We extend the BYM2 model to account for disconnected graphs and islands,
 following the recommendations from
 [A note on intrinsic Conditional Autoregressive models for disconnected graphs](https://arxiv.org/abs/1705.04854),
 Freni-Sterrantino et.al. 2018. 
@@ -117,8 +114,7 @@ Freni-Sterrantino et.al. 2018.
 * Compute per-connected component scaling factor
 * Impose a sum-to-zero constraint on each connected component
 
-
-## Stan Implementation: `bym2_multicomp.stan`
+### Stan Implementation: `bym2_multicomp.stan`
 
 The BYM2_multicomp model requires more additional data inputs: the number of components, their size,
 scaling factor, and the number of singleton nodes.  Because neighbor graph uses the spatial
@@ -149,7 +145,7 @@ expressions, which return slices of an array.  See the Stan User's Guide, sectio
 [slicing with range indexes](https://mc-stan.org/docs/stan-users-guide/multi-indexing.html#slicing-with-range-indexes)
 for details.
 
-### Changes to the `data` block
+#### Changes to the `data` block
 
 The model needs a few more pieces of information:
 the number of connected components, the size and scaling factor for each.
@@ -167,7 +163,7 @@ data {
 }
 ```
 
-### Changes to the `transformed data` block
+#### Changes to the `transformed data` block
 
 First we check that the input data is consistent.
 
@@ -195,7 +191,7 @@ At the same time, we create vector `taus`, the per-region scaling factor.
   }
 ```
 
-### Changes to the `parameters` block:  constraining transforms
+#### Changes to the `parameters` block:  constraining transforms
 
 In the BYM2 model for a fully connected graph the sum-to-zero constraint on `phi`
 is implemented directly by declaring `phi` to be a `sum_to_zero_vector`, which is a
@@ -730,7 +726,7 @@ spatial adjacency structure of the data.
 This was done for the 2019 analysis of Morris et al.
 The results of the regression are reported in Table 4:
 
-## Parameter Estimates from BYM2 Model 
+#### Analysis of NYC using a fully connected graph
 
 | Parameter       | Mean  | SE Mean | SD   | 2.5%  | 97.5% | N_eff | R-hat |
 |--------------- |------:|--------:|-----:|------:|------:|------:|------:|

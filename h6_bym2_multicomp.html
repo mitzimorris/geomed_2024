@@ -3574,17 +3574,11 @@ color: var(--quarto-text-muted);
   <ul class="collapse">
   <li><a href="#libraries-and-helper-functions." id="toc-libraries-and-helper-functions." class="nav-link" data-scroll-target="#libraries-and-helper-functions.">Libraries and helper functions.</a></li>
   </ul></li>
-  <li><a href="#the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018" id="toc-the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018" class="nav-link" data-scroll-target="#the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018">The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018</a></li>
-  <li><a href="#a-quick-review-of-neighbor-graphs" id="toc-a-quick-review-of-neighbor-graphs" class="nav-link" data-scroll-target="#a-quick-review-of-neighbor-graphs">A quick review of neighbor graphs</a></li>
-  <li><a href="#the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018-1" id="toc-the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018-1" class="nav-link" data-scroll-target="#the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018-1">The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018</a>
+  <li><a href="#the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018" id="toc-the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018" class="nav-link" data-scroll-target="#the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018">The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018</a>
   <ul class="collapse">
-  <li><a href="#freni-sterrantion-recommendations" id="toc-freni-sterrantion-recommendations" class="nav-link" data-scroll-target="#freni-sterrantion-recommendations">Freni-Sterrantion recommendations</a></li>
-  </ul></li>
-  <li><a href="#stan-implementation-bym2_multicomp.stan" id="toc-stan-implementation-bym2_multicomp.stan" class="nav-link" data-scroll-target="#stan-implementation-bym2_multicomp.stan">Stan Implementation: <code>bym2_multicomp.stan</code></a>
-  <ul class="collapse">
-  <li><a href="#changes-to-the-data-block" id="toc-changes-to-the-data-block" class="nav-link" data-scroll-target="#changes-to-the-data-block">Changes to the <code>data</code> block</a></li>
-  <li><a href="#changes-to-the-transformed-data-block" id="toc-changes-to-the-transformed-data-block" class="nav-link" data-scroll-target="#changes-to-the-transformed-data-block">Changes to the <code>transformed data</code> block</a></li>
-  <li><a href="#changes-to-the-parameters-block-constraining-transforms" id="toc-changes-to-the-parameters-block-constraining-transforms" class="nav-link" data-scroll-target="#changes-to-the-parameters-block-constraining-transforms">Changes to the <code>parameters</code> block: constraining transforms</a></li>
+  <li><a href="#graph-connectivity-and-modeling-consequences" id="toc-graph-connectivity-and-modeling-consequences" class="nav-link" data-scroll-target="#graph-connectivity-and-modeling-consequences">Graph Connectivity and Modeling Consequences</a></li>
+  <li><a href="#extending-the-bym2-model-in-stan" id="toc-extending-the-bym2-model-in-stan" class="nav-link" data-scroll-target="#extending-the-bym2-model-in-stan">Extending the BYM2 Model in Stan</a></li>
+  <li><a href="#stan-implementation-bym2_multicomp.stan" id="toc-stan-implementation-bym2_multicomp.stan" class="nav-link" data-scroll-target="#stan-implementation-bym2_multicomp.stan">Stan Implementation: <code>bym2_multicomp.stan</code></a></li>
   <li><a href="#putting-it-all-together-bym2_multicomp.stan" id="toc-putting-it-all-together-bym2_multicomp.stan" class="nav-link" data-scroll-target="#putting-it-all-together-bym2_multicomp.stan">Putting it all together: <code>bym2_multicomp.stan</code></a></li>
   </ul></li>
   <li><a href="#fitting-the-bym2_multicomp-model-to-the-nyc-dataset" id="toc-fitting-the-bym2_multicomp-model-to-the-nyc-dataset" class="nav-link" data-scroll-target="#fitting-the-bym2_multicomp-model-to-the-nyc-dataset">Fitting the BYM2_multicomp Model to the NYC Dataset</a>
@@ -3603,7 +3597,6 @@ color: var(--quarto-text-muted);
   <li><a href="#poisson-re-model-ppc-coverage-plots" id="toc-poisson-re-model-ppc-coverage-plots" class="nav-link" data-scroll-target="#poisson-re-model-ppc-coverage-plots">Poisson + RE Model PPC coverage, plots</a></li>
   </ul></li>
   <li><a href="#discussion" id="toc-discussion" class="nav-link" data-scroll-target="#discussion">Discussion</a></li>
-  <li><a href="#parameter-estimates-from-bym2-model" id="toc-parameter-estimates-from-bym2-model" class="nav-link" data-scroll-target="#parameter-estimates-from-bym2-model">Parameter Estimates from BYM2 Model</a></li>
   </ul>
 </nav>
 </div>
@@ -3678,30 +3671,25 @@ color: var(--quarto-text-muted);
 </section>
 <section id="the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018" class="level2">
 <h2 class="anchored" data-anchor-id="the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018">The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018</h2>
-</section>
-<section id="a-quick-review-of-neighbor-graphs" class="level2">
-<h2 class="anchored" data-anchor-id="a-quick-review-of-neighbor-graphs">A quick review of neighbor graphs</h2>
-<p>In the context of an areal map, the neighbor graph is used to model spatial relationships between regions (such as states, districts, or census tracts). Each region is represented as a node, and an edge is drawn between two nodes if their corresponding regions share a common boundary. Edges have no direction, i.e., an edge between <span class="math inline">\(i\)</span> and <span class="math inline">\(j\)</span> implies that <span class="math inline">\(i\)</span> is a neighbor of <span class="math inline">\(j\)</span> and <span class="math inline">\(j\)</span> is a neighbor of <span class="math inline">\(i\)</span>.</p>
-<p><em>Components</em> represent groups of regions that are connected through shared boundaries, either directly or indirectly. The size of a component is the number of nodes in it. An island, or singleton, is a component of size 1; in this notebook we distinguish between <em>connected components</em> of size 2 or greater and <em>singletons</em>.</p>
-<p>If it is possible to find a path (series of edges) which connect every region in the graph to every other region in the graph, then the graph is <em>fully connected</em>, i.e., it consists of a single component. For example, at the state level, the neighbor graph of the 48 continental states of the U.S. is fully connected, but the graph of all 50 U.S. states and territories is <em>disconnected</em>; it consists of a connected component and several islands.</p>
-</section>
-<section id="the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018-1" class="level2">
-<h2 class="anchored" data-anchor-id="the-bym2-model-for-disconnected-graphs-freni-sterrantino-et-al-2018-1">The BYM2 Model for Disconnected Graphs: Freni-Sterrantino et al, 2018</h2>
+<section id="graph-connectivity-and-modeling-consequences" class="level3">
+<h3 class="anchored" data-anchor-id="graph-connectivity-and-modeling-consequences">Graph Connectivity and Modeling Consequences</h3>
+<p>Neighbor graphs are used to model spatial relationships between areal regions (such as states, districts, or census tracts). Nodes in the graph correspond to regions and edges connect nodes whose corresponding regions share a common point or boundary line. Edges have no direction, i.e., an edge between <span class="math inline">\(i\)</span> and <span class="math inline">\(j\)</span> implies that <span class="math inline">\(i\)</span> is a neighbor of <span class="math inline">\(j\)</span> and <span class="math inline">\(j\)</span> is a neighbor of <span class="math inline">\(i\)</span>.</p>
+<p><em>Components</em> represent groups of regions that are connected, either by a direct edge or a series of edges. The size of a component is the number of nodes in it. An island, or singleton, is a component of size 1, so we must distinguish between <em>connected components</em> of size 2 or greater and <em>singletons</em>.</p>
+<p>If it is possible to find a path (series of edges) which connects any region in the graph to any other region, then the graph is <em>fully connected</em>, i.e., it consists of a single component. For example, at the state level, the neighbor graph of the 48 continental states of the U.S. is fully connected, but the graph of all 50 U.S. states and territories is <em>disconnected</em>; it consists of a connected component and several islands.</p>
 <p>The ICAR model requires that the neighbor graph is fully connected for two reasons:</p>
 <ul>
 <li><p>The joint distribution is computed from the pairwise differences between a node and its neighbors; singleton nodes have no neighbors and are therefore undefined.</p></li>
 <li><p>Even if the graph doesn’t have any singleton nodes, when the graph has multiple connected components a sum-to-zero constraint on the entire vector fails to properly identify the model.</p></li>
 </ul>
-<p>As the census tract map of NYC shows, if the metric used to compute spatial adjacency is direct overland adjacency, then the neighbor graph of New York City is has several connected components and a few singleton nodes.</p>
-<p>In order to apply the BYM2 model to the full NYC dataset, it is necessary to either:</p>
+<p>As the census tract map of New York City shows, when the metric used to compute spatial adjacency is a shared geographic point, the neighbor graph of NYC has several connected components and a few singleton nodes. In order to apply the BYM2 model to the full NYC dataset, it is necessary to either:</p>
 <ul>
-<li>Edit the neighbor graph to create a fully connected single component for NYC, or</li>
-<li>Extend the BYM2 model to account for disconnected components and singleton nodes.</li>
+<li><p>Edit the neighbor graph to create a fully connected single component for NYC, as was done for the 2019 analysis of Morris et al.</p></li>
+<li><p>Extend the BYM2 model to account for disconnected components and singleton nodes - continue reading!</p></li>
 </ul>
-<p>For the analysis in Morris et al, 2019, we edited the neighbor graph by adding enough edges to create a single connected component.</p>
-<section id="freni-sterrantion-recommendations" class="level3">
-<h3 class="anchored" data-anchor-id="freni-sterrantion-recommendations">Freni-Sterrantion recommendations</h3>
-<p>In this notebook, we instead extend the BYM2 model to account for disconnected graphs and islands, following the recommendations from <a href="https://arxiv.org/abs/1705.04854">A note on intrinsic Conditional Autoregressive models for disconnected graphs</a>, Freni-Sterrantino et.al. 2018.</p>
+</section>
+<section id="extending-the-bym2-model-in-stan" class="level3">
+<h3 class="anchored" data-anchor-id="extending-the-bym2-model-in-stan">Extending the BYM2 Model in Stan</h3>
+<p>We extend the BYM2 model to account for disconnected graphs and islands, following the recommendations from <a href="https://arxiv.org/abs/1705.04854">A note on intrinsic Conditional Autoregressive models for disconnected graphs</a>, Freni-Sterrantino et.al. 2018.</p>
 <ul>
 <li>Component nodes are given the BYM2 prior</li>
 <li>Singleton nodes (islands) are given a standard Normal prior</li>
@@ -3709,9 +3697,8 @@ color: var(--quarto-text-muted);
 <li>Impose a sum-to-zero constraint on each connected component</li>
 </ul>
 </section>
-</section>
-<section id="stan-implementation-bym2_multicomp.stan" class="level2">
-<h2 class="anchored" data-anchor-id="stan-implementation-bym2_multicomp.stan">Stan Implementation: <code>bym2_multicomp.stan</code></h2>
+<section id="stan-implementation-bym2_multicomp.stan" class="level3">
+<h3 class="anchored" data-anchor-id="stan-implementation-bym2_multicomp.stan">Stan Implementation: <code>bym2_multicomp.stan</code></h3>
 <p>The BYM2_multicomp model requires more additional data inputs: the number of components, their size, scaling factor, and the number of singleton nodes. Because neighbor graph uses the spatial dataframe row indices as the node labels, it is critical that the order of all data inputs matches the dataframe ordering, i.e., that for any row <span class="math inline">\(i\)</span> in the spatial dataframe, the <span class="math inline">\(i^{th}\)</span> element of the observed outcome <code>y</code> and design matrix <code>xs</code> match that row, and the node ids used in the <code>neighbors</code> edge pairs array. Data preprocessing consists of the following operations, in order:</p>
 <ul>
 <li><p>Create the neighbor graph from the spatial dataframe; add graph component labels to the dataframe.</p></li>
@@ -3721,8 +3708,8 @@ color: var(--quarto-text-muted);
 </ul>
 <p>We have written a series of helper functions in R and Python to do this which are in files <code>utils_nyc_map.py</code> and <code>utils_nyc_map.R</code>. For further details on editing spatial data structures see the notebook on spatial data: <a href="https://github.com/mitzimorris/geomed_2024/blob/main/h2_spatial_data.qmd">Spatial Data Analysis in Python and R</a>.</p>
 <p>By reordering the spatial data frame by component membership, with singleton nodes at the end of the dataframe, we can easily implement both the component-wise sum to zero constraint and compute the spatial effects for connected nodes, using Stan’s <a href="https://mc-stan.org/docs/reference-manual/expressions.html#language-multi-indexing.section">range indexing</a> expressions, which return slices of an array. See the Stan User’s Guide, section <a href="https://mc-stan.org/docs/stan-users-guide/multi-indexing.html#slicing-with-range-indexes">slicing with range indexes</a> for details.</p>
-<section id="changes-to-the-data-block" class="level3">
-<h3 class="anchored" data-anchor-id="changes-to-the-data-block">Changes to the <code>data</code> block</h3>
+<section id="changes-to-the-data-block" class="level4">
+<h4 class="anchored" data-anchor-id="changes-to-the-data-block">Changes to the <code>data</code> block</h4>
 <p>The model needs a few more pieces of information: the number of connected components, the size and scaling factor for each.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> {</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  ...</span>
@@ -3735,8 +3722,8 @@ color: var(--quarto-text-muted);
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[<span class="dv">2</span>, N_edges] <span class="dt">int</span>&lt;<span class="kw">lower</span> = <span class="dv">1</span>, <span class="kw">upper</span> = (sum(component_sizes))&gt; neighbors;  <span class="co">// was upper = N</span></span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="changes-to-the-transformed-data-block" class="level3">
-<h3 class="anchored" data-anchor-id="changes-to-the-transformed-data-block">Changes to the <code>transformed data</code> block</h3>
+<section id="changes-to-the-transformed-data-block" class="level4">
+<h4 class="anchored" data-anchor-id="changes-to-the-transformed-data-block">Changes to the <code>transformed data</code> block</h4>
 <p>First we check that the input data is consistent.</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">transformed data</span> {</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  ...</span>
@@ -3755,8 +3742,8 @@ color: var(--quarto-text-muted);
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    idx += component_sizes[n];</span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  }</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="changes-to-the-parameters-block-constraining-transforms" class="level3">
-<h3 class="anchored" data-anchor-id="changes-to-the-parameters-block-constraining-transforms">Changes to the <code>parameters</code> block: constraining transforms</h3>
+<section id="changes-to-the-parameters-block-constraining-transforms" class="level4">
+<h4 class="anchored" data-anchor-id="changes-to-the-parameters-block-constraining-transforms">Changes to the <code>parameters</code> block: constraining transforms</h4>
 <p>In the BYM2 model for a fully connected graph the sum-to-zero constraint on <code>phi</code> is implemented directly by declaring <code>phi</code> to be a <code>sum_to_zero_vector</code>, which is a <a href="https://mc-stan.org/docs/reference-manual/transforms.html#variable-transforms.chapter">constrained parameter type</a>. The declaration:</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>  sum_to_zero_vector[N] phi;  <span class="co">// spatial effects</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>creates a <em>constrained</em> variable of length <span class="math inline">\(N\)</span>, with a corresponding unconstrained variable of length <span class="math inline">\(N-1\)</span>.</p>
@@ -3814,6 +3801,7 @@ color: var(--quarto-text-muted);
 <span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    }</span>
 <span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> phi_ozs;</span>
 <span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  }</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
 </section>
 <section id="putting-it-all-together-bym2_multicomp.stan" class="level3">
 <h3 class="anchored" data-anchor-id="putting-it-all-together-bym2_multicomp.stan">Putting it all together: <code>bym2_multicomp.stan</code></h3>
@@ -4206,9 +4194,8 @@ color: var(--quarto-text-muted);
 <p>The BYM2_multicomp model requires a few more kinds of input data to identify the number and size of the disconnected components and singletons. It also requires that the data be organized by component, in order to allow for efficient computation. This, in turn, increases the number of steps required to assemble the data inputs.</p>
 <p>Assembling the spatial effects vector <code>phi</code> from a series of ICAR components, each of which has a sum-to-zero constraint for identifiability, requires a by-hand implementation of the constraining transform for the sum-to-zero vector; this increases the size and complexity of the model.</p>
 <p>However, the alternative is creating a spatial map which doesn’t reflect the true spatial adjacency structure of the data. This was done for the 2019 analysis of Morris et al. The results of the regression are reported in Table 4:</p>
-</section>
-<section id="parameter-estimates-from-bym2-model" class="level2">
-<h2 class="anchored" data-anchor-id="parameter-estimates-from-bym2-model">Parameter Estimates from BYM2 Model</h2>
+<section id="analysis-of-nyc-using-a-fully-connected-graph" class="level4">
+<h4 class="anchored" data-anchor-id="analysis-of-nyc-using-a-fully-connected-graph">Analysis of NYC using a fully connected graph</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 23%">
@@ -4322,6 +4309,7 @@ color: var(--quarto-text-muted);
 <div class="cell">
 <div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>bym2_multicomp_fit<span class="sc">$</span><span class="fu">print</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;beta_intercept&#39;</span>, <span class="st">&#39;betas[1]&#39;</span>, <span class="st">&#39;betas[2]&#39;</span>, <span class="st">&#39;betas[3]&#39;</span>, <span class="st">&#39;betas[4]&#39;</span>, <span class="st">&#39;sigma&#39;</span>, <span class="st">&#39;rho&#39;</span>)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
 </section>
 
 </main>

@@ -10,9 +10,6 @@ format:
     toc-location: left
     grid:
       body-width: 1000px
-execute:
-  eval: false
-  keep-ipynb: true
 ---
 
 
@@ -20,29 +17,6 @@ execute:
 
 ### Libraries and helper functions.
 
-**Python**
-```{python}
-# import all libraries used in this notebook
-import os
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-import libpysal
-import matplotlib
-from splot.libpysal import plot_spatial_weights 
-%matplotlib inline
-
-import warnings
-warnings.filterwarnings('ignore')
-
-from cmdstanpy import CmdStanModel, cmdstan_path, cmdstan_version
-
-from utils_bym2 import get_scaling_factor, nbs_to_adjlist
-from utils_nyc_map import *
-from utils_dataviz import *
-```
-
-**R**
 ```{r}
 library(ggplot2)
 library(igraph)
@@ -277,16 +251,6 @@ This transform is implemented by two functions in the `functions` block.
 
 ### Putting it all together:  `bym2_multicomp.stan`
 
-**Python**
-```{python}
-bym2_multicomp_file = os.path.join('stan', 'bym2_multicomp.stan')
-
-with open(bym2_multicomp_file, 'r') as file:
-    contents = file.read()
-    print(contents)
-```
-
-**R**
 ```{r}
 bym2_multicomp_file = file.path('stan', 'bym2_multicomp.stan')
 cat(readLines(bym2_multicomp_file), sep="\n")
@@ -321,13 +285,6 @@ data {
 
 #### Load the NYC dataset
 
-**Python**
-```{python}
-nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
-nyc_geodata.columns
-```
-
-**R**
 ```{r}
 nyc_geodata = st_read("data/nyc_study.geojson")
 names(nyc_geodata)
@@ -339,13 +296,6 @@ Create the neighbors graph and plot the map.  This shows a set of spurious conne
 between Manhattan and Brooklyn and Queens, (likely due to bridges and tunnels).
 
 
-**Python**
-```{python}
-nyc_nbs_all = libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col='geometry')
-plot_spatial_weights(nyc_nbs_all, nyc_geodata)
-```
-
-**R**
 ```{r}
 nyc_nbs_all = poly2nb(nyc_geodata)
 nyc_coords = st_coordinates(st_centroid(nyc_geodata['geometry']))
@@ -360,13 +310,6 @@ from Queens and Brooklyn.  However, as Queens and Brooklyn are in fact the same 
 
 To check that the neighbor graph is correct, we replot it.
 
-**Python**
-```{python}
-nyc_nbs = nyc_cleanup(nyc_nbs_all, nyc_geodata)
-plot_spatial_weights(nyc_nbs, nyc_geodata)
-```
-
-**R**
 ```{r}
 nyc_nbs = nyc_cleanup(nyc_nbs_all, nyc_geodata)
 plot(st_geometry(nyc_geodata), col='skyblue')
@@ -381,19 +324,6 @@ which takes into account the necessity of correcting for problems in the NYC geo
 A general version for maps where the spatial graph lines up with real-world connectivity,
 this function could be simplified.
 
-**Python**
-```{python}
-(nyc_nbs, nyc_gdf, sizes) = nyc_sort_by_comp_size(nyc_geodata)
-plot_spatial_weights(nyc_nbs, nyc_gdf)
-```
-```{python}
-nyc_gdf[['NTAName', 'comp_id', 'comp_size']].head(4)
-```
-```{python}
-nyc_gdf[['NTAName', 'comp_id', 'comp_size']].tail(4)
-```
-
-**R**
 ```{r}
 nyc_components = nyc_sort_by_comp_size(nyc_geodata)
 nyc_nbs = nyc_components$nb
@@ -412,13 +342,6 @@ plot(nyc_nbs_padded, coords=nyc_coords, add=TRUE, pch=20, cex=0.6)
 
 #### Get edgeset
 
-**Python**
-```{python}
-nyc_nbs_adj = nbs_to_adjlist(nyc_nbs)
-nyc_nbs_adj
-```
-
-**R**
 ```{r}
 nyc_nbs_adj = nbs_to_adjlist(nyc_nbs)
 nyc_nbs_adj[1:2, 1:10]
@@ -426,21 +349,6 @@ nyc_nbs_adj[1:2, 1:10]
 
 #### Get regression inputs
 
-**Python**
-```{python}
-N = nyc_gdf.shape[0]
-y = nyc_gdf['count'].astype('int')
-E = nyc_gdf['kid_pop'].astype('int')
-K = 4
-
-design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
-design_mat = nyc_gdf[design_vars].to_numpy()
-design_mat[:, 1] = np.log(design_mat[:, 1])
-design_mat[:, 2] = np.log(design_mat[:, 2])
-pd.DataFrame(data=design_mat).describe()
-```
-
-**R**
 ```{r}
 N = nrow(nyc_gdf)
 y = as.integer(nyc_gdf$count)
@@ -456,15 +364,6 @@ summary(design_mat)
 
 #### Compute number of components, sizes, and number of singleton nodes
 
-**Python**
-```{python}
-component_sizes = [x for x in sizes if x > 1]
-N_components = len(component_sizes)
-print("N_components ", N_components, " component_sizes ", component_sizes)
-print("N connected ", np.sum(component_sizes))
-```
-
-**R**
 ```{r}
 component_sizes <- sizes[sizes > 1]
 N_components <- length(component_sizes)
@@ -474,19 +373,6 @@ cat("N connected:", sum(component_sizes), "\n")
 
 #### Compute per-component scaling factors
 
-**Python**
-```{python}
-scaling_factors = np.ones(N_components)
-for i in range(N_components):
-    comp_gdf = nyc_gdf[nyc_gdf['comp_id'] == i].reset_index(drop=True)
-    comp_nbs = libpysal.weights.Queen.from_dataframe(comp_gdf, geom_col='geometry')
-    component_w = libpysal.weights.W(comp_nbs.neighbors, comp_nbs.weights)
-    scaling_factors[i] = get_scaling_factor(component_w)
-
-print(scaling_factors)
-```
-
-**R**
 ```{r}
 scaling_factors <- rep(1, N_components)
 
@@ -501,24 +387,6 @@ print(scaling_factors)
 
 #### Assemble the input data into a Python dict, R list
 
-**Python**
-```{python}
-# assemble nyc_data_dict
-bym2_data = {
-    'N':N,
-    'y':y,
-    'E':E,
-    'K':K,
-    'xs':design_mat,
-    'N_components':N_components,
-    'component_sizes': component_sizes,
-    'N_edges':nyc_nbs_adj.shape[1],
-    'neighbors':nyc_nbs_adj,
-    'scaling_factors': scaling_factors
-}
-```
-
-**R**
 ```{r}
 bym2_data <- list(
   N = N,
@@ -538,49 +406,10 @@ bym2_data <- list(
 
 Check that variance of scaled phi is approx $1$.
 
-**Python**
-```{python}
-bym2_multicomp_gamma_ppc_file = os.path.join('stan', 'bym2_multicomp_gamma_ppc.stan')
-with open(bym2_multicomp_gamma_ppc_file, 'r') as file:
-    contents = file.read()
-    print(contents)
-bym2_multicomp_gamma_ppc_mod = CmdStanModel(stan_file=bym2_multicomp_gamma_ppc_file)
-```
-
-**R**
 ```{r}
 bym2_multicomp_gamma_ppc_file = file.path('stan', 'bym2_multicomp_gamma_ppc.stan')
 cat(readLines(bym2_multicomp_gamma_ppc_file), sep="\n")
 bym2_multicomp_gamma_ppc_mod = cmdstan_model(stan_file=bym2_multicomp_gamma_ppc_file)
-```
-
-**Python**
-```{python}
-bym2_multicomp_gamma_ppc_fit = bym2_multicomp_gamma_ppc_mod.sample(data = bym2_data)
-```
-
-```{python}
-# broadcast per-component scaling factor to vector taus
-# (done in model's `transformed data block)
-N_connected = np.sum(component_sizes)
-taus = np.zeros(N_connected)
-idx = 0
-for n, size in enumerate(component_sizes):
-    start_idx = idx
-    end_idx = idx + size
-    taus[start_idx:end_idx] = scaling_factors[n] 
-    idx = end_idx 
-
-phi = bym2_multicomp_gamma_ppc_fit.stan_variable('phi')
-phi_var_by_region = np.var((np.sqrt(1/taus) * phi), axis=0)
-print('mean variance of phi scaled', np.mean(phi_var_by_region))
-
-theta = bym2_multicomp_gamma_ppc_fit.stan_variable('theta')
-print('mean variance of theta', np.mean(np.var(theta, axis=0)))
-```
-
-**R**
-```{r}
 bym2_multicomp_gamma_ppc_fit = bym2_multicomp_gamma_ppc_mod$sample(data=bym2_data,
 			     parallel_chains=cores, refresh=0)
 ```
@@ -618,43 +447,15 @@ rho ~ beta(0.5, 0.5);
 
 As expected, before seeing any data, the value of `rho` matches the prior.
 
-**Python**
-```{python}
-rho = bym2_multicomp_gamma_ppc_fit.stan_variable('rho')
-print('mean rho', np.mean(rho))
-```
-
-**R**
 ```{r}
 rho <- as_draws_array(bym2_multicomp_gamma_ppc_fit$draws("rho"))
 mean(rho)
 ```
 
-
-
 ## Fit model to data
 
-**Python**
-```{python}
-bym2_multicomp_mod = CmdStanModel(stan_file=bym2_multicomp_file)
-```
-
-**R**
 ```{r}
 bym2_multicomp_mod = cmdstan_model(stan_file=bym2_multicomp_file)
-```
-
-**Python**
-```{python}
-bym2_multicomp_fit = bym2_multicomp_mod.sample(data=bym2_data, iter_warmup=3000, iter_sampling=2000)
-
-bym2_multicomp_summary = bym2_multicomp_fit.summary()
-bym2_multicomp_summary.round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
-```
-
-**R**
-```{r}
 bym2_multicomp_fit = bym2_multicomp_mod$sample(data=bym2_data, parallel_chains=cores,
 		   iter_warmup=3000, iter_sampling=2000, refresh=0)
 bym2_multicomp_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho')) 
@@ -672,14 +473,6 @@ with red indicating positive correlation and blue indicating negative correlatio
 The census tracts are listed roughly in geographic order, from north-to-south and
 east-to-west, thus adjacent elements along the diagonal are spatially adjacent.
 
-**Python**
-```{python}
-phi_multicomp = bym2_multicomp_fit.stan_variable("phi")
-corr_plot = plot_icar_corr_matrix(phi_multicomp, 'BYM2 spatial correlation', (10, 10))
-corr_plot
-```
-
-**R**
 ```{r}
 phi_multicomp <- as_draws_matrix(bym2_multicomp_fit$draws("phi"))
 plot_icar_corr_matrix(phi_multicomp, 'BYM2 spatial correlation')
@@ -690,32 +483,6 @@ Plotting the component-by-component correlations more clearly shows the spatial 
 The first three components correspond to Brooklyn and Queens (minus the Rockaways),
 Manhattan (minus Roosevelt Island), and the Bronx (minus City Island), respectively.
 
-**Python**
-```{python}
-corr_plots = []
-start_idx = 1
-for i in range(N_components):
-    end_idx = component_sizes[i] + start_idx
-    phi_slice = phi_multicomp[ : , start_idx : end_idx ]
-    corr_plots.append(plot_icar_corr_matrix(phi_slice,
-        "Spatial Correlation vector phi_"+str(i)+"\nBYM2 multicomp",
-	size=(10,10)))
-```
-
-```{python}
-# Brooklyn and Queens (mainland)
-corr_plots[0]
-```    
-```{python}
-# Manhattan
-corr_plots[1]
-```    
-```{python}
-# Bronx
-corr_plots[2]
-```    
-
-**R**
 ```{r}
 corr_plots <- list()
 start_idx <- 1
@@ -743,17 +510,6 @@ corr_plots[3]
 
 ### Posterior predictive checks
 
-**Python**
-```{python}
-y_rep_multicomp = bym2_multicomp_fit.stan_variable("y_rep")
-print("PPC BYM2\n", ppc_central_interval(y_rep_multicomp, bym2_data['y']))
-
-ppc_plot = ppc_y_yrep_overlay(y_rep_multicomp, bym2_data['y'],
-                                'BYM2 multicomp model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
-ppc_plot
-```
-
-**R**
 ```{r}
 y_rep_multicomp <- as_draws_matrix(bym2_multicomp_fit$draws("y_rep"))
 cat("PPC BYM2_multicomp")
@@ -780,35 +536,12 @@ following edits to the neighbor graph:
 
 As the census tract map already connects Manhattan to Brooklyn and Queens according to bridges and tunnels, we keep these connections as well.   We have written helper functions to do this as part of the `utils_nyc_map.py` and `utils_nyc_map.R` files.
 
-
-**Python**
-```{python}
-nyc_connected_nbs = connect_nyc(nyc_geodata)
-print(f'number of components: {nyc_connected_nbs.n_components}')
-print(f'islands? {nyc_connected_nbs.islands}')
-print(f'mean number of neighbors per node: {nyc_connected_nbs.mean_neighbors}')
-```
-```{python}
-plot_spatial_weights(nyc_connected_nbs, nyc_geodata) 
-```
-
-**R**
 ```{r}
 nyc_connected_nbs = connect_nyc(nyc_geodata)
 ```
 
 Compute the scaling factor `tau` for `nyc_connected_nbs`, along with the list of neighbor pairs.
 
-**Python**
-```{python}
-nyc_connected_nbs_adj = nbs_to_adjlist(nyc_connected_nbs)
-N_edges = nyc_connected_nbs_adj.shape[1]
-tau = get_scaling_factor(nyc_connected_nbs)
-print("N_edges:",N_edges,", tau",tau.round(2))
-```
-
-
-**R**
 ```{r}
 nyc_connected_nbs_adj = nbs_to_adjlist(nyc_connected_nbs)
 N_edges = ncol(nyc_connected_nbs_adj)
@@ -820,25 +553,6 @@ cat("N_edges: ",N_edges,", tau ",tau)
 
 Create the input data dict, list for the model `bym2_gamma_ppc.stan`.
 
-**Python**
-```{python}
-design_mat = nyc_geodata[["pct_pubtransit", "med_hh_inc", "frag_index", "traffic"]].copy()
-design_mat["med_hh_inc"] = np.log(design_mat["med_hh_inc"])
-design_mat["traffic"] = np.log(design_mat["traffic"])
-
-bym2_1comp_data = {
-    "N": len(nyc_geodata),
-    "y": nyc_geodata["count"].astype(int).values,
-    "E": nyc_geodata["kid_pop"].astype(int).values,
-    "K": 4,
-    "xs": design_mat.values,
-    "N_edges": N_edges,
-    "neighbors": nyc_connected_nbs_adj,
-    "tau": tau
-}
-```
-
-**R**
 ```{r}
 design_mat <- as.data.frame(nyc_geodata) %>%
   select(pct_pubtransit, med_hh_inc, traffic, frag_index) %>%
@@ -859,22 +573,6 @@ bym2_1comp_data <- list(
 
 Fit prior predictive model, check variance of scaled prior `phi` as well as `theta`.
 
-**Python**
-```{python}
-bym2_gamma_ppc_mod = CmdStanModel(stan_file = os.path.join('stan', 'bym2_gamma_ppc.stan'))
-bym2_1comp_gamma_ppc_fit = bym2_gamma_ppc_mod.sample(data = bym2_1comp_data)
-```
-
-```{python}
-phi = bym2_1comp_gamma_ppc_fit.stan_variable('phi')
-phi_var_by_region = np.var((np.sqrt(1/tau) * phi), axis=0)
-print('mean variance of phi scaled', np.mean(phi_var_by_region))
-
-theta = bym2_1comp_gamma_ppc_fit.stan_variable('theta')
-print('mean variance of theta', np.mean(np.var(theta, axis=0)))
-```
-
-**R**
 ```{r}
 bym2_gamma_ppc_mod = cmdstan_model(stan_file=file.path('stan', 'bym2_gamma_ppc.stan'))
 bym2_1comp_gamma_ppc_fit = bym2_gamma_ppc_mod$sample(data=bym2_1comp_data, parallel_chains=cores, refresh=0)
@@ -882,7 +580,7 @@ bym2_1comp_gamma_ppc_fit = bym2_gamma_ppc_mod$sample(data=bym2_1comp_data, paral
 
 ```{r}
 phi <- as_draws_matrix(bym2_1comp_gamma_ppc_fit$draws("phi"))
-phi_scaled <- sweep(phi, 2, sqrt(1 / taus), "*")
+phi_scaled <- sweep(phi, 2, sqrt(1 / tau), "*")
 phi_var_by_region <- apply(phi, 2, var)
 print(paste("mean variance of phi scaled:", mean(phi_var_by_region)))
 
@@ -893,12 +591,6 @@ print(paste("mean variance of theta:", mean(theta_var_by_region)))
 
 Check the variance of `phi`, unscaled (as in the Leroux model).
 
-**Python**
-```{python}
-np.mean(np.var(phi, axis=0))
-```
-
-**R**
 ```{r}
 mean(apply(phi, 2, var))
 ```
@@ -913,18 +605,6 @@ which in turn boosts the geometric mean.
 To see the overall effect of creating a single connected component, which can be fit using the BYM2 model,
 we fit the model on the data, and then compare the model estimates.
 
-
-**Python**
-```{python}
-bym2_mod = CmdStanModel(stan_file = os.path.join('stan', 'bym2.stan'))
-bym2_1comp_fit = bym2_mod.sample(data=bym2_1comp_data, iter_warmup=5000, iter_sampling=2000)
-
-bym2_1comp_summary = bym2_1comp_fit.summary()
-bym2_1comp_summary.round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
-```
-
-**R**
 ```{r}
 bym2_mod = cmdstan_model(stan_file=file.path('stan', 'bym2.stan'))
 bym2_1comp_fit = bym2_mod$sample(data=bym2_1comp_data, parallel_chains=cores, iter_warmup=5000, iter_sampling=2000, refresh=0)
@@ -943,16 +623,6 @@ The input dataset `bym2_data` is created from the reordered geodataframe `nyc_gd
 In order to compare the outputs from `bym2_1comp_fit` and `bym2_multicomp_fit`,
 we need to reorder the former according to the latter.
 
-
-**Python**
-```{python}
-sort_index = np.searchsorted(
-    np.sort(nyc_geodata["ct2010full"].values), 
-    nyc_gdf["ct2010full"].values
-)
-```
-
-**R**
 ```{r}
 sort_index <- match(nyc_gdf$ct2010full, nyc_geodata$ct2010full)
 ```
@@ -960,14 +630,6 @@ sort_index <- match(nyc_gdf$ct2010full, nyc_geodata$ct2010full)
 In addition, to compare estimates of spatial component vector `phi`, we must pad the BYM2_multicomp one,
 because it doesn't include the three singletons in the map (City Island, Broad Channel, and Breezy Point).
 
-
-**Python**
-```{python}
-phi_multicomp = bym2_multicomp_fit.stan_variable('phi')
-phi_multicomp_padded = np.concatenate([phi_multicomp, np.zeros((phi_multicomp.shape[0], 3))], axis=1)
-```
-
-**R**
 ```{r}
 phi_multicomp = as_draws_matrix(bym2_multicomp_fit$draws("phi"))
 phi_multicomp_padded = cbind(phi_multicomp, matrix(0, nrow = nrow(phi_multicomp), ncol=3))
@@ -975,26 +637,6 @@ phi_multicomp_padded = cbind(phi_multicomp, matrix(0, nrow = nrow(phi_multicomp)
 
 We compute the difference between the per-tract mean estimates and plot the resulting heatmap.
 
-**Python**
-```{python}
-# BYM2 multicomp estimates
-phi_multicomp_mean = np.mean(phi_multicomp_padded, axis=0)
-
-# BYM2 1comp estimates
-phi_1comp = bym2_1comp_fit.stan_variable('phi')
-phi_1comp_sorted = phi_1comp[:, sort_index]
-phi_1comp_mean = np.mean(phi_1comp_sorted, axis=0)
-
-# compare via heatmap plot
-phi_diff = phi_multicomp_mean - phi_1comp_mean
-plot_heatmap(nyc_gdf, phi_diff,
-             "Changes in spatial component phi",
-             "BYM2_multicomp_fit - BYM2_1comp_fit", "difference")
-
-
-```
-
-**R**
 ```{r}
 # BYM2 multicomp estimates
 phi_multicomp_mean = apply(phi_multicomp_padded, 2, mean)
@@ -1013,18 +655,6 @@ plot_heatmap(nyc_gdf, phi_diff,
 
 ##### Compare fitted estimates
 
-**Python**
-```{python}
-print("BYM2 1comp fit")
-bym2_1comp_summary.round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
-
-print("BYM2_multicomp fit")
-bym2_multicomp_summary.round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho']]
-```
-
-**R**
 ```{r}
 cat("BYM2 1comp fit")
 bym2_1comp_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho')) 
@@ -1037,25 +667,6 @@ bym2_multicomp_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'b
 
 ##### Posterior predictive checks
 
-**Python**
-```{python}
-y_rep_1comp = bym2_1comp_fit.stan_variable("y_rep")
-print("PPC BYM2\n", ppc_central_interval(y_rep_1comp, bym2_1comp_data['y']))
-
-ppc_plot = ppc_y_yrep_overlay(y_rep_1comp, bym2_1comp_data['y'],
-                                'BYM2 1comp model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
-ppc_plot
-```
-```{python}
-y_rep_multicomp = bym2_multicomp_fit.stan_variable("y_rep")
-print("PPC BYM2\n", ppc_central_interval(y_rep_multicomp, bym2_data['y']))
-
-ppc_plot = ppc_y_yrep_overlay(y_rep_multicomp, bym2_data['y'],
-                                'BYM2 multicomp model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
-ppc_plot
-```
-
-**R**
 ```{r}
 y_rep_1comp <- as_draws_matrix(bym2_1comp_fit$draws("y_rep"))
 cat("PPC BYM2_1comp")
@@ -1076,22 +687,6 @@ ppc_y_yrep_overlay(y_rep_multicomp, bym2_data$y,
 
 #### Visualizing posterior predictive differences on the map
 
-
-**Python**
-```{python}
-y_rep_multicomp_mean = np.mean(y_rep_multicomp, axis=0)
-
-y_rep_1comp_sorted = y_rep_1comp[:, sort_index]
-y_rep_1comp_mean = np.mean(y_rep_1comp_sorted, axis=0)
-
-y_rep_diff = y_rep_multicomp_mean - y_rep_1comp_mean
-plot_heatmap(nyc_gdf, y_rep_diff,
-             "Changes in predicted outcomes",
-             "BYM2_multicomp_fit - BYM2_1comp_fit", "difference")
-```
-
-
-**R**
 ```{r}
 y_rep_multicomp = as_draws_matrix(bym2_multicomp_fit$draws("y_rep"))
 y_rep_multicomp_mean <- apply(y_rep_multicomp, 2, mean)
@@ -1104,7 +699,6 @@ plot_heatmap(nyc_gdf, y_rep_diff,
              "Changes in predicted outcomes",
              "BYM2_multicomp_fit - BYM2_1comp_fit", "difference")
 ```
-
 
 ## Discussion
 

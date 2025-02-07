@@ -3907,15 +3907,13 @@ color: var(--quarto-text-muted);
 <span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>sizes <span class="ot">=</span> nyc_components<span class="sc">$</span>component_sizes</span>
 <span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="do">### pad for plotting</span></span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>nyc_nbs[<span class="dv">2093</span>] <span class="ot">=</span> <span class="dv">0</span>L</span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>nyc_nbs[<span class="dv">2094</span>] <span class="ot">=</span> <span class="dv">0</span>L</span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>nyc_nbs[<span class="dv">2095</span>] <span class="ot">=</span> <span class="dv">0</span>L</span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>nyc_coords <span class="ot">=</span> <span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(nyc_gdf[<span class="st">&#39;geometry&#39;</span>]))</span>
-<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">st_geometry</span>(nyc_gdf), <span class="at">col=</span><span class="st">&#39;skyblue&#39;</span>)</span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(nyc_nbs, <span class="at">coords=</span>nyc_coords, <span class="at">add=</span><span class="cn">TRUE</span>, <span class="at">pch=</span><span class="dv">20</span>, <span class="at">cex=</span><span class="fl">0.6</span>)</span>
-<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a><span class="do">### reset</span></span>
-<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>nyc_nbs <span class="ot">=</span> nyc_components<span class="sc">$</span>nb</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>nyc_nbs_padded <span class="ot">=</span> nyc_nbs</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>nyc_nbs_padded[<span class="dv">2093</span>] <span class="ot">=</span> <span class="dv">0</span>L</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>nyc_nbs_padded[<span class="dv">2094</span>] <span class="ot">=</span> <span class="dv">0</span>L</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>nyc_nbs_padded[<span class="dv">2095</span>] <span class="ot">=</span> <span class="dv">0</span>L</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>nyc_coords <span class="ot">=</span> <span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(nyc_gdf[<span class="st">&#39;geometry&#39;</span>]))</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">st_geometry</span>(nyc_gdf), <span class="at">col=</span><span class="st">&#39;skyblue&#39;</span>)</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(nyc_nbs_padded, <span class="at">coords=</span>nyc_coords, <span class="at">add=</span><span class="cn">TRUE</span>, <span class="at">pch=</span><span class="dv">20</span>, <span class="at">cex=</span><span class="fl">0.6</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="get-edgeset" class="level4">
@@ -3971,7 +3969,7 @@ color: var(--quarto-text-muted);
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>component_sizes <span class="ot">&lt;-</span> sizes[sizes <span class="sc">&gt;</span> <span class="dv">1</span>]  <span class="co"># Filter sizes greater than 1</span></span>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>component_sizes <span class="ot">&lt;-</span> sizes[sizes <span class="sc">&gt;</span> <span class="dv">1</span>]</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>N_components <span class="ot">&lt;-</span> <span class="fu">length</span>(component_sizes)</span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;N_components:&quot;</span>, N_components, <span class="st">&quot;component_sizes:&quot;</span>, component_sizes, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;N connected:&quot;</span>, <span class="fu">sum</span>(component_sizes), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -3992,12 +3990,12 @@ color: var(--quarto-text-muted);
 </div>
 <p><strong>R</strong></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>scaling_factors <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">1</span>, N_components)  <span class="co"># Initialize vector of ones</span></span>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>scaling_factors <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">1</span>, N_components)</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_len</span>(N_components)) {</span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    comp_gdf <span class="ot">&lt;-</span> nyc_gdf[nyc_gdf<span class="sc">$</span>comp_id <span class="sc">==</span> i, ]  <span class="co"># Select component i</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    comp_gdf <span class="ot">&lt;-</span> nyc_gdf[nyc_gdf<span class="sc">$</span>comp_id <span class="sc">==</span> i, ]</span>
 <span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    comp_nbs <span class="ot">&lt;-</span> <span class="fu">poly2nb</span>(comp_gdf)</span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    scaling_factors[i] <span class="ot">&lt;-</span> <span class="fu">get_scaling_factor</span>(comp_nbs)  <span class="co"># Compute scaling factor</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    scaling_factors[i] <span class="ot">&lt;-</span> <span class="fu">get_scaling_factor</span>(comp_nbs)</span>
 <span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(scaling_factors)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -4069,14 +4067,14 @@ color: var(--quarto-text-muted);
 <span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> n, size <span class="kw">in</span> <span class="bu">enumerate</span>(component_sizes):</span>
 <span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>    start_idx <span class="op">=</span> idx</span>
 <span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>    end_idx <span class="op">=</span> idx <span class="op">+</span> size</span>
-<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>    taus[start_idx:end_idx] <span class="op">=</span> scaling_factors[n]  <span class="co"># Assign scaling factors</span></span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>    taus[start_idx:end_idx] <span class="op">=</span> scaling_factors[n] </span>
 <span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> end_idx </span>
 <span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>phi <span class="op">=</span> bym2_multicomp_gamma_ppc_fit.stan_variable(<span class="st">&#39;phi&#39;</span>)  <span class="co"># shape (n_draws, N)</span></span>
-<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>phi_var_by_region <span class="op">=</span> np.var((np.sqrt(<span class="dv">1</span><span class="op">/</span>taus) <span class="op">*</span> phi), axis<span class="op">=</span><span class="dv">0</span>)  <span class="co"># variance across draws for each region</span></span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>phi <span class="op">=</span> bym2_multicomp_gamma_ppc_fit.stan_variable(<span class="st">&#39;phi&#39;</span>)</span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>phi_var_by_region <span class="op">=</span> np.var((np.sqrt(<span class="dv">1</span><span class="op">/</span>taus) <span class="op">*</span> phi), axis<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;mean variance of phi scaled&#39;</span>, np.mean(phi_var_by_region))</span>
 <span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>theta <span class="op">=</span> bym2_multicomp_gamma_ppc_fit.stan_variable(<span class="st">&#39;theta&#39;</span>)  <span class="co"># shape (n_draws, N)</span></span>
+<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>theta <span class="op">=</span> bym2_multicomp_gamma_ppc_fit.stan_variable(<span class="st">&#39;theta&#39;</span>)</span>
 <span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;mean variance of theta&#39;</span>, np.mean(np.var(theta, axis<span class="op">=</span><span class="dv">0</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
@@ -4088,7 +4086,7 @@ color: var(--quarto-text-muted);
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co"># broadcast per-component scaling factor to vector taus</span></span>
 <span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="co"># (done in model&#39;s `transformed data block)</span></span>
 <span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>N_connected <span class="ot">&lt;-</span> <span class="fu">sum</span>(component_sizes)</span>
-<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>taus <span class="ot">&lt;-</span> <span class="fu">numeric</span>(N_connected)  <span class="co"># Initialize vector of zeros</span></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>taus <span class="ot">&lt;-</span> <span class="fu">numeric</span>(N_connected)</span>
 <span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>idx <span class="ot">&lt;-</span> <span class="dv">1</span></span>
 <span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (n <span class="cf">in</span> <span class="fu">seq_along</span>(component_sizes)) {</span>
 <span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>  start_idx <span class="ot">&lt;-</span> idx</span>
@@ -4098,12 +4096,12 @@ color: var(--quarto-text-muted);
 <span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a> </span>
 <span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>phi <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(bym2_multicomp_gamma_ppc_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;phi&quot;</span>))</span>
-<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>phi_var_by_region <span class="ot">&lt;-</span> <span class="fu">apply</span>(phi, <span class="dv">2</span>, var)  <span class="co"># variance across draws for each region</span></span>
-<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>phi_var_scaled <span class="ot">=</span> phi_var_by_region <span class="sc">/</span> <span class="fu">sqrt</span>(taus)</span>
-<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">&quot;mean variance of phi scaled:&quot;</span>, <span class="fu">mean</span>(phi_var_scaled)))</span>
+<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>phi_scaled <span class="ot">&lt;-</span> <span class="fu">sweep</span>(phi, <span class="dv">2</span>, <span class="fu">sqrt</span>(<span class="dv">1</span> <span class="sc">/</span> taus), <span class="st">&quot;*&quot;</span>)</span>
+<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>phi_var_by_region <span class="ot">&lt;-</span> <span class="fu">apply</span>(phi, <span class="dv">2</span>, var)</span>
+<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">&quot;mean variance of phi scaled:&quot;</span>, <span class="fu">mean</span>(phi_var_by_region)))</span>
 <span id="cb39-17"><a href="#cb39-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb39-18"><a href="#cb39-18" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(bym2_multicomp_gamma_ppc_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;theta&quot;</span>))</span>
-<span id="cb39-19"><a href="#cb39-19" aria-hidden="true" tabindex="-1"></a>theta_var_by_region <span class="ot">&lt;-</span> <span class="fu">apply</span>(theta, <span class="dv">2</span>, var)  <span class="co"># variance across draws for each region</span></span>
+<span id="cb39-19"><a href="#cb39-19" aria-hidden="true" tabindex="-1"></a>theta_var_by_region <span class="ot">&lt;-</span> <span class="fu">apply</span>(theta, <span class="dv">2</span>, var)</span>
 <span id="cb39-20"><a href="#cb39-20" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">&quot;mean variance of theta:&quot;</span>, <span class="fu">mean</span>(theta_var_by_region)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="check-rho" class="level4">
@@ -4202,15 +4200,15 @@ color: var(--quarto-text-muted);
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Brooklyn and Queens (mainland)</span></span>
-<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>corr_plots[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>corr_plots[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Manhattan</span></span>
-<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>corr_plots[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>corr_plots[<span class="dv">2</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Bronx</span></span>
-<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>corr_plots[<span class="dv">2</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>corr_plots[<span class="dv">3</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="posterior-predictive-checks" class="level3">
@@ -4324,11 +4322,11 @@ color: var(--quarto-text-muted);
 <span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>bym2_1comp_gamma_ppc_fit <span class="op">=</span> bym2_gamma_ppc_mod.sample(data <span class="op">=</span> bym2_1comp_data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>phi <span class="op">=</span> bym2_1comp_gamma_ppc_fit.stan_variable(<span class="st">&#39;phi&#39;</span>)  <span class="co"># shape (n_draws, N)</span></span>
-<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>phi_var_by_region <span class="op">=</span> np.var((np.sqrt(<span class="dv">1</span><span class="op">/</span>tau) <span class="op">*</span> phi), axis<span class="op">=</span><span class="dv">0</span>)  <span class="co"># variance across draws for each region</span></span>
+<div class="sourceCode cell-code" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>phi <span class="op">=</span> bym2_1comp_gamma_ppc_fit.stan_variable(<span class="st">&#39;phi&#39;</span>)</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>phi_var_by_region <span class="op">=</span> np.var((np.sqrt(<span class="dv">1</span><span class="op">/</span>tau) <span class="op">*</span> phi), axis<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;mean variance of phi scaled&#39;</span>, np.mean(phi_var_by_region))</span>
 <span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a>theta <span class="op">=</span> bym2_1comp_gamma_ppc_fit.stan_variable(<span class="st">&#39;theta&#39;</span>)  <span class="co"># shape (n_draws, N)</span></span>
+<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a>theta <span class="op">=</span> bym2_1comp_gamma_ppc_fit.stan_variable(<span class="st">&#39;theta&#39;</span>)</span>
 <span id="cb67-6"><a href="#cb67-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;mean variance of theta&#39;</span>, np.mean(np.var(theta, axis<span class="op">=</span><span class="dv">0</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>R</strong></p>
@@ -4338,11 +4336,13 @@ color: var(--quarto-text-muted);
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb69"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a>phi <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(bym2_1comp_gamma_ppc_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;phi&quot;</span>))</span>
-<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>phi_var_by_region <span class="ot">&lt;-</span> <span class="fu">apply</span>(<span class="fu">sqrt</span>(<span class="dv">1</span><span class="sc">/</span>tau) <span class="sc">*</span> phi, <span class="dv">2</span>, var)  <span class="co"># variance across draws for each region</span></span>
-<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">&quot;mean variance of phi scaled:&quot;</span>, <span class="fu">mean</span>(phi_var_by_region)))</span>
-<span id="cb69-4"><a href="#cb69-4" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(bym2_1comp_gamma_ppc_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;theta&quot;</span>))</span>
-<span id="cb69-5"><a href="#cb69-5" aria-hidden="true" tabindex="-1"></a>theta_var_by_region <span class="ot">&lt;-</span> <span class="fu">apply</span>(theta, <span class="dv">2</span>, var)  <span class="co"># variance across draws for each region</span></span>
-<span id="cb69-6"><a href="#cb69-6" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">&quot;mean variance of theta:&quot;</span>, <span class="fu">mean</span>(theta_var_by_region)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>phi_scaled <span class="ot">&lt;-</span> <span class="fu">sweep</span>(phi, <span class="dv">2</span>, <span class="fu">sqrt</span>(<span class="dv">1</span> <span class="sc">/</span> taus), <span class="st">&quot;*&quot;</span>)</span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a>phi_var_by_region <span class="ot">&lt;-</span> <span class="fu">apply</span>(phi, <span class="dv">2</span>, var)</span>
+<span id="cb69-4"><a href="#cb69-4" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">&quot;mean variance of phi scaled:&quot;</span>, <span class="fu">mean</span>(phi_var_by_region)))</span>
+<span id="cb69-5"><a href="#cb69-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb69-6"><a href="#cb69-6" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">as_draws_matrix</span>(bym2_1comp_gamma_ppc_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;theta&quot;</span>))</span>
+<span id="cb69-7"><a href="#cb69-7" aria-hidden="true" tabindex="-1"></a>theta_var_by_region <span class="ot">&lt;-</span> <span class="fu">apply</span>(theta, <span class="dv">2</span>, var)</span>
+<span id="cb69-8"><a href="#cb69-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">&quot;mean variance of theta:&quot;</span>, <span class="fu">mean</span>(theta_var_by_region)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Check the variance of <code>phi</code>, unscaled (as in the Leroux model).</p>
 <p><strong>Python</strong></p>
@@ -4404,11 +4404,11 @@ color: var(--quarto-text-muted);
 <p><strong>Python</strong></p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb78"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb78-1"><a href="#cb78-1" aria-hidden="true" tabindex="-1"></a><span class="co"># BYM2 multicomp estimates</span></span>
-<span id="cb78-2"><a href="#cb78-2" aria-hidden="true" tabindex="-1"></a>phi_multicomp_mean <span class="op">=</span> np.mean(phi_multicomp_padded, axis<span class="op">=</span><span class="dv">0</span>)  <span class="co"># axis=0 corresponds to column-wise mean</span></span>
+<span id="cb78-2"><a href="#cb78-2" aria-hidden="true" tabindex="-1"></a>phi_multicomp_mean <span class="op">=</span> np.mean(phi_multicomp_padded, axis<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb78-3"><a href="#cb78-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb78-4"><a href="#cb78-4" aria-hidden="true" tabindex="-1"></a><span class="co"># BYM2 1comp estimates</span></span>
 <span id="cb78-5"><a href="#cb78-5" aria-hidden="true" tabindex="-1"></a>phi_1comp <span class="op">=</span> bym2_1comp_fit.stan_variable(<span class="st">&#39;phi&#39;</span>)</span>
-<span id="cb78-6"><a href="#cb78-6" aria-hidden="true" tabindex="-1"></a>phi_1comp_sorted <span class="op">=</span> phi_1comp[:, sort_index]  <span class="co"># Reorder columns</span></span>
+<span id="cb78-6"><a href="#cb78-6" aria-hidden="true" tabindex="-1"></a>phi_1comp_sorted <span class="op">=</span> phi_1comp[:, sort_index]</span>
 <span id="cb78-7"><a href="#cb78-7" aria-hidden="true" tabindex="-1"></a>phi_1comp_mean <span class="op">=</span> np.mean(phi_1comp_sorted, axis<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb78-8"><a href="#cb78-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb78-9"><a href="#cb78-9" aria-hidden="true" tabindex="-1"></a><span class="co"># compare via heatmap plot</span></span>
@@ -4488,7 +4488,7 @@ color: var(--quarto-text-muted);
 <span id="cb85-2"><a href="#cb85-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;PPC BYM2_multicomp&quot;</span>)</span>
 <span id="cb85-3"><a href="#cb85-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_central_interval</span>(y_rep_multicomp, bym2_data<span class="sc">$</span>y)</span>
 <span id="cb85-4"><a href="#cb85-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb85-5"><a href="#cb85-5" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_y_yrep_overlay</span>(y_rep_multicomp, bym2_multicomp_data<span class="sc">$</span>y,</span>
+<span id="cb85-5"><a href="#cb85-5" aria-hidden="true" tabindex="-1"></a><span class="fu">ppc_y_yrep_overlay</span>(y_rep_multicomp, bym2_data<span class="sc">$</span>y,</span>
 <span id="cb85-6"><a href="#cb85-6" aria-hidden="true" tabindex="-1"></a>                     <span class="st">&#39;BYM2_multicomp model PPC</span><span class="sc">\n</span><span class="st">y (blue dot) vs. y_rep (orange 50% central interval, grey full extent)&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
@@ -4512,7 +4512,7 @@ color: var(--quarto-text-muted);
 <div class="sourceCode cell-code" id="cb87"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb87-1"><a href="#cb87-1" aria-hidden="true" tabindex="-1"></a>y_rep_multicomp <span class="ot">=</span> <span class="fu">as_draws_matrix</span>(bym2_multicomp_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="st">&quot;y_rep&quot;</span>))</span>
 <span id="cb87-2"><a href="#cb87-2" aria-hidden="true" tabindex="-1"></a>y_rep_multicomp_mean <span class="ot">&lt;-</span> <span class="fu">apply</span>(y_rep_multicomp, <span class="dv">2</span>, mean)</span>
 <span id="cb87-3"><a href="#cb87-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb87-4"><a href="#cb87-4" aria-hidden="true" tabindex="-1"></a>y_rep_1comp_sorted <span class="ot">&lt;-</span> y_rep_1comp[, sort_index]  <span class="co"># reorder</span></span>
+<span id="cb87-4"><a href="#cb87-4" aria-hidden="true" tabindex="-1"></a>y_rep_1comp_sorted <span class="ot">&lt;-</span> y_rep_1comp[, sort_index]</span>
 <span id="cb87-5"><a href="#cb87-5" aria-hidden="true" tabindex="-1"></a>y_rep_1comp_mean <span class="ot">&lt;-</span> <span class="fu">apply</span>(y_rep_1comp_sorted, <span class="dv">2</span>, mean)</span>
 <span id="cb87-6"><a href="#cb87-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb87-7"><a href="#cb87-7" aria-hidden="true" tabindex="-1"></a>y_rep_diff <span class="ot">=</span> y_rep_multicomp_mean <span class="sc">-</span> y_rep_1comp_mean</span>

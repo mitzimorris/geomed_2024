@@ -5,6 +5,7 @@ library(tidyverse) |> suppressPackageStartupMessages()
 library(igraph)
 
 
+
 #  create edgelist for ICAR component
 nbs_to_adjlist <- function(nb) {
     adj_matrix = nb2mat(nb,style="B")

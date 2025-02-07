@@ -90,3 +90,45 @@ def ppc_central_interval(y_rep: np.ndarray, y: pd.Series) -> str:
         f"y total: {y_rep.shape[1]}, "
         f"ct y is within y_rep central 50% interval: {within_50}, "
         f"pct: {100 * within_50 / y_rep.shape[1]}"))
+
+
+def plot_heatmap(nyc_gdf, data, title, subtitle, scale_name):
+    """
+    Creates a spatial heatmap
+    :param nyc_gdf: GeoDataFrame containing spatial regions
+    :param data: Array of values to plot (must match nyc_gdf row order)
+    :param title: Plot title
+    :param subtitle: Plot subtitle
+    :param scale_name: Label for the color scale
+    :return: plotnine object
+    """
+    nyc_gdf = nyc_gdf.copy()
+    nyc_gdf["plot_values"] = data
+    p = (p9.ggplot(nyc_gdf) +
+         p9.geom_map(p9.aes(fill='plot_values')) +
+         p9.scale_fill_gradient2(low="blue", mid="white", high="orange", midpoint=0, name=scale_name) +
+         p9.labs(title=title, subtitle=subtitle) +
+         p9.theme_minimal() +
+         p9.theme(figure_size=(20,20),
+                  plot_title=p9.element_text(size=32),
+                  plot_subtitle=p9.element_text(size=24),
+                  legend_position='left',
+                  legend_title=p9.element_text(size=20),
+                  legend_text=p9.element_text(size=16),
+                  legend_key_size=24)
+         )
+    return p
+
+def ppc_dens_overlay(sim_data: pd.Series, y_rep: np.ndarray, sample_size: int, title: str, x_label: str) -> p9.ggplot:
+    y_rep_sample = pd.DataFrame(y_rep).sample(n=sample_size).reset_index(drop=True).T
+    ppc_dens_plot = p9.ggplot()
+    for i in range(sample_size):
+        ppc_dens_plot = (ppc_dens_plot
+                             + p9.stat_density(mapping=p9.aes(x=y_rep_sample[i]), geom='line', color='lightblue', alpha=0.2))
+    ppc_dens_plot = (ppc_dens_plot 
+                         + p9.stat_density(mapping=p9.aes(x=sim_data), geom='line', color='darkblue', size=1.1)
+                         + p9.ggtitle(title)
+                         + p9.xlab(x_label) + p9.ylab("density")
+                         + p9.theme(figure_size=(10,5))
+         )
+    return ppc_dens_plot

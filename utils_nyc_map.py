@@ -71,3 +71,34 @@ def nyc_sort_by_comp_size(nyc_gdf: gpd.GeoDataFrame) -> tuple[W, gpd.GeoDataFram
     component_sizes = list(sizes.sort_values(ascending=False))
 
     return nyc_nbs_clean, nyc_gdf_sorted, component_sizes
+
+
+def connect_nbs(nbs: W, region_i: int, region_j: int) -> None:
+    """
+    Modify a neighbors graph to add a bidirectional connection between two nodes if one doesn't already exist.
+    - param nbs : neighbor graph to modify
+    - params region_i, region_j : IDs of nodes to connect
+    """
+    weight = 1.0
+    # using R style node ids; Python counts from 0
+    node_i = region_i - 1
+    node_j = region_j - 1
+    # Add bidirectional connection if it doesn't exist
+    if node_j not in nbs.neighbors[node_i]:
+        # Connect i -> j
+        nbs.neighbors[node_i].append(node_j)
+        nbs.weights[node_i].append(weight)
+        # Connect j -> i 
+        nbs.neighbors[node_j].append(node_i)
+        nbs.weights[node_j].append(weight)
+
+def connect_nyc(nyc_gdf: gpd.GeoDataFrame) -> W:
+    nyc_nbs = Queen.from_dataframe(nyc_gdf, geom_col='geometry')
+    connect_nbs(nyc_nbs, 1995, 387)  # Staten Island to Bay Ridge
+    connect_nbs(nyc_nbs, 1861, 1863) # Breezy Point to Rockaways
+    connect_nbs(nyc_nbs, 1904, 1859) # Broad Channel to Brooklyn
+    connect_nbs(nyc_nbs, 1904, 1871) # Broad Channel to Rockaways
+    connect_nbs(nyc_nbs, 1311, 1364) # Roosevelt Island to Queens
+    connect_nbs(nyc_nbs, 1343, 193) # Manhattan to Bronx
+    connect_nbs(nyc_nbs, 329, 212) # City Island to Bronx
+    return W(nyc_nbs.neighbors, nyc_nbs.weights)

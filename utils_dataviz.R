@@ -74,3 +74,21 @@ ppc_central_interval <- function(y_rep, y) {
             within_50,
             100 * within_50 / length(y))
 }
+
+
+plot_heatmap <- function(nyc_gdf, data, title, subtitle, scale_name) {
+  p <- ggplot(nyc_gdf) +
+      geom_sf(aes(fill = data), color = "darkblue", size = 0.1) +
+      scale_fill_gradient2(low = "blue", mid = "white", high = "orange", midpoint = 0, name=scale_name) +
+      labs(title=title, subtitle=subtitle) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 32),
+            plot.subtitle = element_text(size = 24),
+            legend.position = "left",
+            legend.title = element_text(size = 20),
+            legend.text = element_text(size = 16),
+            legend.key.size = unit(24, "pt"),
+            plot.margin = margin(20, 20, 20, 20, "pt")
+            )
+  return(p)
+}

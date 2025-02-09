@@ -12,7 +12,6 @@ format:
       body-width: 1000px
 execute:
   eval: false
-  keep-ipynb: true
 ---
 
 ### The BYM2 Model: Riebler et al, 2016

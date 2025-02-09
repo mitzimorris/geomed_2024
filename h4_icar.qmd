@@ -12,7 +12,6 @@ format:
       body-width: 1000px
 execute:
   eval: false
-  keep-ipynb: true
 ---
 
 ### ICAR Model Specification

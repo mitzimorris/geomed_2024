@@ -12,7 +12,6 @@ format:
       body-width: 1000px
 execute:
   eval: false
-  keep-ipynb: true
 ---
 
 When writing a Stan model, as when writing any other computer program,\
@@ -612,20 +611,21 @@ y_rep_re <- as_draws_matrix(pois_re_fit$draws("y_rep"))
 ppc_central_interval(y_rep_re, pois_data$y)
 ```
 
-Run the PPC plots
+#### Poisson + RE Model PPC plots
 
 **Python**
 ```{python}
 ppc_plot = ppc_y_yrep_overlay(y_rep_re, pois_data['y'],
-                                'Poisson + RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
+                                'RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ppc_plot
 ```
 
 **R**
 ```{r}
 ppc_y_yrep_overlay(y_rep_re, pois_data$y,
-                     'Poisson + RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
+                     'RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
 ```
+
 
 ## Model Comparison
 

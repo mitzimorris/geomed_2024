@@ -718,6 +718,7 @@ This is problematic for the following reasons:
 * Editing neighbor graphs is tedious and error-prone.
 * It imposes artificial spatial correlations in the model.
 * Adding edges boosts the geometric mean of the row sums,
-thus affecting the scaling factor.
-This results in a falsely inflated estimate of the parameter `rho`, the fraction of spatial variance.
+thus affecting the scaling factor, which results in a falsely
+inflated estimate of the parameter `rho`, the fraction of spatial variance.
+
 The BYM2_multicomp model provides a principled alternative.

@@ -5,7 +5,7 @@ workshop ** Spatial Modeling with Stan**  at [GeoMed 2024](https://www.uhasselt.
 
 > * To introduce new users to existing implementations of spatial models in Stan and the corresponding tools and workflow for model validation and comparison.
 
-> ( To provide researchers with the necessary understanding of Stan language syntax and computation so that they can develop custom models and extend existing ones.
+> * To provide researchers with the necessary understanding of Stan language syntax and computation so that they can develop custom models and extend existing ones.
 
 
 This repository contains the R and Python Jupyter notebooks, stan models, and datasets.

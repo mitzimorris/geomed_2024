@@ -37,7 +37,7 @@ def plot_icar_corr_matrix(draws: np.ndarray, title: str, size: tuple[int, int]) 
         + p9.scale_fill_gradient2(low='darkblue', mid='white', high='darkorange', midpoint=0)
         + p9.theme_minimal()
         + p9.theme(
-            figure_size=size,
+#            figure_size=size,
             axis_text_x=p9.element_blank(),
             axis_text_y=p9.element_blank())
         + p9.ylab('') + p9.xlab('')
@@ -72,7 +72,7 @@ def ppc_y_yrep_overlay(
         + p9.geom_line(p9.aes(y='y_rep_median'), color='orange', alpha=0.8)
         + p9.geom_ribbon(p9.aes(ymin='y_rep_lower', ymax='y_rep_upper'),
                                 fill='grey', alpha=0.2)
-        + p9.theme(figure_size=(10, 5), axis_text_x=p9.element_blank())
+        + p9.theme(figure_size=(8, 4), axis_text_x=p9.element_blank())
         + p9.ylab('y_rep') + p9.xlab('y')
         + p9.ggtitle(title)
         )
@@ -92,7 +92,7 @@ def ppc_central_interval(y_rep: np.ndarray, y: pd.Series) -> str:
         f"pct: {100 * within_50 / y_rep.shape[1]}"))
 
 
-def plot_heatmap(nyc_gdf, data, title, subtitle, scale_name):
+def plot_heatmap(nyc_gdf, data, title, subtitle, scale_name, size: tuple[int, int]) -> p9.ggplot:
     """
     Creates a spatial heatmap
     :param nyc_gdf: GeoDataFrame containing spatial regions
@@ -106,16 +106,11 @@ def plot_heatmap(nyc_gdf, data, title, subtitle, scale_name):
     nyc_gdf["plot_values"] = data
     p = (p9.ggplot(nyc_gdf) +
          p9.geom_map(p9.aes(fill='plot_values')) +
-         p9.scale_fill_gradient2(low="blue", mid="white", high="orange", midpoint=0, name=scale_name) +
+         p9.scale_fill_gradient2(low="blue", mid="white", high="orange",
+                                     midpoint=0, name=scale_name) +
          p9.labs(title=title, subtitle=subtitle) +
          p9.theme_minimal() +
-         p9.theme(figure_size=(20,20),
-                  plot_title=p9.element_text(size=32),
-                  plot_subtitle=p9.element_text(size=24),
-                  legend_position='left',
-                  legend_title=p9.element_text(size=20),
-                  legend_text=p9.element_text(size=16),
-                  legend_key_size=24)
+         p9.theme(figure_size=size, legend_position='left')
          )
     return p
 

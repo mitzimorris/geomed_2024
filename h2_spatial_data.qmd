@@ -2,13 +2,21 @@
 title: "Spatial Data Analysis in Python and R"
 format:
   html:
-    css: theming/quarto_styles.css 
-    embed-resources: true
+    theme:
+      - cosmo
+      - quarto-config/theme.scss
+    syntax-definitions:
+      - quarto-config/stan.xml
+    highlight-style: quarto-config/tango.theme
+    code-copy: true
+    code-overflow: wrap
     toc: true
-    toc-location: left
-output: html_document
-editor_options: 
-  chunk_output_type: console
+    css: quarto-config/quarto_styles.css
+    grid:
+      sidebar-width: 250px
+      body-width: 900px
+      margin-width: 300px
+engine: jupyter
 ---
 
 
@@ -318,7 +326,7 @@ a proper network.
 
 **Python**
 ```{python}
-nyc_nbs = libpysal.weights.Rook.from_dataframe(nyc_geodata, geom_col='geometry')
+nyc_nbs = libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col='geometry')
 plot_spatial_weights(nyc_nbs, nyc_geodata)
 ```
 
@@ -326,7 +334,7 @@ plot_spatial_weights(nyc_nbs, nyc_geodata)
 ```{r}
 #| fig-width: 10
 #| fig-height: 11
-nyc_nbs = poly2nb(nyc_geodata, queen=FALSE)
+nyc_nbs = poly2nb(nyc_geodata)
 nyc_coords = st_coordinates(st_centroid(nyc_geodata['geometry']))
 plot(st_geometry(nyc_geodata), col='lightgrey')
 plot(nyc_nbs, coords=nyc_coords, col='deepskyblue3', add=TRUE, pch=20, cex=0.6)
@@ -405,27 +413,26 @@ How does this play out when the map is not as regular as a chessboard?
 **Python**
 ```{python}
 #| results: hold
-nyc_nbs_queen = libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col='geometry')
-print(f'queen max number of neighbors per node: {nyc_nbs_queen.max_neighbors}')
-print(f'rook max number of neighbors per node: {nyc_nbs.max_neighbors}')
-print(f'queen mean number of neighbors per node: {nyc_nbs_queen.mean_neighbors}')
-print(f'rook mean number of neighbors per node: {nyc_nbs.mean_neighbors}')
-print(f'queen islands? {nyc_nbs_queen.islands}')
-print(f'rook islands? {nyc_nbs.islands}')
-print(f'queen number of components: {nyc_nbs_queen.n_components}')
-print(f'rook number of components: {nyc_nbs.n_components}')
+nyc_nbs_rook = libpysal.weights.Rook.from_dataframe(nyc_geodata, geom_col='geometry')
+print(f'queen max number of neighbors per node: {nyc_nbs.max_neighbors}')
+print(f'rook max number of neighbors per node: {nyc_nbs_rook.max_neighbors}')
+print(f'queen mean number of neighbors per node: {nyc_nbs.mean_neighbors}')
+print(f'rook mean number of neighbors per node: {nyc_nbs_rook.mean_neighbors}')
+print(f'queen islands? {nyc_nbs.islands}')
+print(f'rook islands? {nyc_nbs_rook.islands}')
+print(f'queen number of components: {nyc_nbs.n_components}')
+print(f'rook number of components: {nyc_nbs_rook.n_components}')
 ```
 
 **R**
 ```{r}
 #| results: hold
-nyc_nbs_queen = poly2nb(nyc_geodata, queen=TRUE)
+nyc_nbs_rook = poly2nb(nyc_geodata, queen=FALSE)
 cat("*** Queen metric nb summary ***\n\n")
-summary(nyc_nbs_queen)
-cat("\n\n*** Rook metric nb summary ***\n\n")
 summary(nyc_nbs)
+cat("\n\n*** Rook metric nb summary ***\n\n")
+summary(nyc_nbs_rook)
 ```
-
 
 ## Editing Neighbor Graph Objects
 
@@ -459,12 +466,7 @@ Because the Rook metric computes a simple binary relationship, the value of all 
 
 * `W.cardinalities`: A dict mapping each region ID to its number of neighbors.
 
-If weights object is created without specifying the region IDS, as we did above:
-
-```python
-nyc_nbs = libpysal.weights.Rook.from_dataframe(nyc_geodata, geom_col='geometry')
-```
-
+If weights object is created without specifying the region IDS, (as we did above)
 the positional row indices of the geodataframe are used as ids.
 
 ```{python}
@@ -522,10 +524,11 @@ At a minimum, you should check that
 * the weights are valid
 * plot the modified graph to verify the edits
 
+**Python**
+
 For a python libpysal `W` object `w` with corresponding
 GeoDataFrame `gdf`
 
-**Python**
 ```python
 # is the graph symmetric?
 print(f'is symmetric? {len(w.asymmetries) == 0}')
@@ -544,9 +547,10 @@ plot_weights(w, gdf.geometry)
 plt.show()
 ```
 
+**R**
+
 For a R spdep `nb` object `nb_obj`
 
-**R**
 ```r
 cat('is symmetric? ', is.symmetric.nb(nb_obj), '\n')
 
@@ -808,23 +812,68 @@ and three singleton nodes:  City Island, Broad Channel, and Breezy Point.
 
 Since the graph is not connected, there is no correct way to connect these regions, but we try to find reasonably "close" pairs of regions to connect.
 
+To edit the libpysal neighbor graph and keep indices consistent between graph edits
+in R and Python, we define a helper function `add_symmetric_edge'.
+
 ** Python **
 ```{python}
-# start from geodataframe
-nyc_nbs = libpysal.weights.Rook.from_dataframe(nyc_geodata, geom_col='geometry')
-
-add_symmetric_edge(nyc_nbs, 201, 1339) # Spuyten Duyvel to Inwood
-add_symmetric_edge(nyc_nbs, 2010, 429) # Grasmere to Bay Ridge
-add_symmetric_edge(nyc_nbs, 1311, 1190) # Roosevelt Island to Lenox Hill
-add_symmetric_edge(nyc_nbs, 1310, 1385) # Roosevelt Island to Queensbridge
-add_symmetric_edge(nyc_nbs, 328, 196) # City Island to Pelham Bay
-add_symmetric_edge(nyc_nbs, 1860, 1862)  # Breezy Point to the Rockaways
-add_symmetric_edge(nyc_nbs, 1860, 625)  # Breezy Point to Brighton Beach
-add_symmetric_edge(nyc_nbs, 1870, 1903)  # Broad Channel to the Rockaways
-add_symmetric_edge(nyc_nbs, 1903, 1858)  # Broad Channel to Howard Beech
+def add_symmetric_edge(nbs: libpysal.weights.W, region_i: int, region_j: int) -> None:
+    """
+    Modify a weights object, adding a bidirectional connection
+    between two nodes if one doesn't already exist.
+    - param nbs : neighbor graph to modify
+    - params region_i, region_j : IDs of nodes to connect
+    """
+    weight = 1.0
+    # using R style node ids; Python counts from 0
+    node_i = region_i - 1
+    node_j = region_j - 1
+    # Add bidirectional connection if it doesn't exist
+    if node_j not in nbs.neighbors[node_i]:
+        # Connect i -> j
+        nbs.neighbors[node_i].append(node_j)
+        nbs.weights[node_i].append(weight)
+        # Connect j -> i 
+        nbs.neighbors[node_j].append(node_i)
+        nbs.weights[node_j].append(weight)
 ```
 
+** R **
+```{r}
+add_symmetric_edge_nb <- function(nb, i, j) {
+  nb_res = nb
+  if (!(j %in% nb[[i]])) {
+    if (nb[[i]][1] == 0) {
+      nb_res[[i]] = j
+    } else {
+      nb_res[[i]] <- sort(c(nb[[i]], j))
+    }
+  }
+  if (!(i %in% nb[[j]])) {
+    if (nb[[j]][1] == 0) {
+      nb_res[[j]] = i
+     } else {
+       nb_res[[j]] <- sort(c(nb[[j]], i))
+     }
+  }
+  return(nb_res)
+}
+```
+To fully connect the NYC neighbor graph we call this function repeatedly.
+
+** Python **
 ```{python}
+# create fully connected network
+# nyc_geodata is from file "nyc_study.geojson", order unchanged
+nyc_nbs = libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col='geometry')
+add_symmetric_edge(nyc_nbs, 1995, 387)  # Staten Island to Bay Ridge
+add_symmetric_edge(nyc_nbs, 1861, 1863) # Breezy Point to Rockaways
+add_symmetric_edge(nyc_nbs, 1904, 1859) # Broad Channel to Brooklyn
+add_symmetric_edge(nyc_nbs, 1904, 1871) # Broad Channel to Rockaways
+add_symmetric_edge(nyc_nbs, 1311, 1364) # Roosevelt Island to Queens
+add_symmetric_edge(nyc_nbs, 1343, 193) # Manhattan to Bronx
+add_symmetric_edge(nyc_nbs, 329, 212) # City Island to Bronx
+
 # instantiate a new spatial weights object with the updated neighbors and weights
 nyc_nbs_connected = libpysal.weights.W(nyc_nbs.neighbors, nyc_nbs.weights)
 plot_spatial_weights(nyc_nbs_connected, nyc_geodata)
@@ -841,41 +890,31 @@ print('component ids ', unique, '\ncomponent size', counts)
 
 ** R **
 ```{r}
-# start from geodataframe
-nyc_nbs = poly2nb(nyc_geodata, queen=FALSE)
-```
-
-Since R indexes from 1, we increment the indices accordingly.
-
-
-```{r}
-# R indexes from 1
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 202L, 1340L) # Spuyten Duyvel to Inwood
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 430L, 2011L) # Grasmere to Bay Ridge
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 1191L, 1312L) # Roosevelt Island to Lenox Hill
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 1311L, 1386L) # Roosevelt Island to Queensbridge
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 197L, 329L) # City Island to Pelham Bay
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 1861L, 1863L)  # Breezy Point to the Rockaways
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 626L, 1861L)  # Breezy Point to Brighton Beach
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 1871L, 1904L)  # Broad Channel to the Rockaways
-nyc_nbs = add_symmetric_edge_nb(nyc_nbs, 1859L, 1904L)  # Broad Channel to Howard Beech
+# nyc_geodata is from file "nyc_study.geojson", order unchanged
+nyc_nbs_connected = poly2nb(nyc_geodata)
+nyc_nbs_connected = add_symmetric_edge_nb(nyc_nbs_connected, 1995L, 387L)  # Staten Island to Bay Ridge
+nyc_nbs_connected = add_symmetric_edge_nb(nyc_nbs_connected, 1861L, 1863L) # Breezy Point to Rockaways
+nyc_nbs_connected = add_symmetric_edge_nb(nyc_nbs_connected, 1904L, 1859L) # Broad Channel to Brooklyn
+nyc_nbs_connected = add_symmetric_edge_nb(nyc_nbs_connected, 1904L, 1871L) # Broad Channel to Rockaways
+nyc_nbs_connected = add_symmetric_edge_nb(nyc_nbs_connected, 1311L, 1364L) # Roosevelt Island to Queens
+nyc_nbs_connected = add_symmetric_edge_nb(nyc_nbs_connected, 1343L, 193L) # Manhattan to Bronx
+nyc_nbs_connected = add_symmetric_edge_nb(nyc_nbs_connected, 329L, 212L) # City Island to Bronx
 ```
 
 ```{r}
 #| fig-width: 10
 #| fig-height: 11
 plot(st_geometry(nyc_geodata), col='lightgrey')
-plot(nyc_nbs, coords=nyc_coords, col='deepskyblue3', add=TRUE, pch=20, cex=0.6)
+plot(nyc_nbs_connected, coords=nyc_coords, col='deepskyblue3', add=TRUE, pch=20, cex=0.6)
 ```
-
 
 ```{r}
 #| results: hold
 # check your work
-cat('is symmetric? ', is.symmetric.nb(nyc_nbs), '\n')
-summary(nyc_nbs)
+cat('is symmetric? ', is.symmetric.nb(nyc_nbs_connected), '\n')
+summary(nyc_nbs_connected)
 cat('nodes per component')
-table(n.comp.nb(nyc_nbs)$comp.id)
+table(n.comp.nb(nyc_nbs_connected)$comp.id)
 ```
 
 ## Comparison of packages `libpysal` and `spdep`

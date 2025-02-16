@@ -1,13 +1,23 @@
 ---
 title: Stan for Spatial Models Software Setup
 subtitle: Instructions for GeoMed Workshop
-
 format:
   html:
-    css: theming/quarto_styles.css 
-    embed-resources: true
+    theme:
+      - cosmo
+      - quarto-config/theme.scss
+    syntax-definitions:
+      - quarto-config/stan.xml
+    highlight-style: quarto-config/tango.theme
+    code-copy: true
+    code-overflow: wrap
     toc: true
-    toc-location: left
+    css: quarto-config/quarto_styles.css
+    grid:
+      sidebar-width: 250px
+      body-width: 900px
+      margin-width: 300px
+engine: jupyter
 ---
 
 

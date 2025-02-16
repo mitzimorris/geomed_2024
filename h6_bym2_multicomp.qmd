@@ -2,16 +2,20 @@
 title: "Extending the BYM2 Model for Disconnected Graphs"
 format:
   html:
-    css: theming/quarto_styles.css 
+    theme:
+      - cosmo
+      - quarto-config/theme.scss
     syntax-definitions:
-      - theming/stan.xml
-    embed-resources: true
+      - quarto-config/stan.xml
+    highlight-style: quarto-config/tango.theme
+    code-copy: true
+    code-overflow: wrap
     toc: true
-    toc-location: left
+    css: quarto-config/quarto_styles.css
     grid:
-      body-width: 1000px
-execute:
-  eval: false
+      sidebar-width: 250px
+      body-width: 900px
+      margin-width: 300px
 ---
 
 
@@ -988,9 +992,7 @@ phi_1comp_mean = np.mean(phi_1comp_sorted, axis=0)
 phi_diff = phi_multicomp_mean - phi_1comp_mean
 plot_heatmap(nyc_gdf, phi_diff,
              "Changes in spatial component phi",
-             "BYM2_multicomp_fit - BYM2_1comp_fit", "difference")
-
-
+             "BYM2_multicomp_fit - BYM2_1comp_fit", "difference", (8, 7))
 ```
 
 **R**
@@ -1086,7 +1088,7 @@ y_rep_1comp_mean = np.mean(y_rep_1comp_sorted, axis=0)
 y_rep_diff = y_rep_multicomp_mean - y_rep_1comp_mean
 plot_heatmap(nyc_gdf, y_rep_diff,
              "Changes in predicted outcomes",
-             "BYM2_multicomp_fit - BYM2_1comp_fit", "difference")
+             "BYM2_multicomp_fit - BYM2_1comp_fit", "difference", (8, 7))
 ```
 
 

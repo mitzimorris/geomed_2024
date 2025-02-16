@@ -2,16 +2,21 @@
 title: "Stan Model Building Workflow"
 format:
   html:
-    css: theming/quarto_styles.css 
+    theme:
+      - cosmo
+      - quarto-config/theme.scss
     syntax-definitions:
-      - theming/stan.xml
-    embed-resources: true
+      - quarto-config/stan.xml
+    highlight-style: quarto-config/tango.theme
+    code-copy: true
+    code-overflow: wrap
     toc: true
-    toc-location: left
+    css: quarto-config/quarto_styles.css
     grid:
-      body-width: 1000px
-execute:
-  eval: false
+      sidebar-width: 250px
+      body-width: 900px
+      margin-width: 300px
+engine: jupyter
 ---
 
 When writing a Stan model, as when writing any other computer program,\

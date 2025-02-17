@@ -4,19 +4,21 @@ format:
   html:
     theme:
       - cosmo
-      - quarto-config/theme.scss
+      - ../quarto-config/theme.scss
     syntax-definitions:
-      - quarto-config/stan.xml
-    highlight-style: quarto-config/tango.theme
+      - ../quarto-config/stan.xml
+    highlight-style: ../quarto-config/tango.theme
     code-copy: true
     code-overflow: wrap
     toc: true
-    css: quarto-config/quarto_styles.css
+    css: ../quarto-config/quarto_styles.css
     grid:
       sidebar-width: 250px
       body-width: 900px
       margin-width: 300px
-engine: jupyter
+output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ### ICAR Model Specification
@@ -62,32 +64,6 @@ model {
 
 Import all libraries, load the NYC study data.
 
-**Python**
-```{python}
-# import all libraries used in this notebook
-import os
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-import libpysal
-import matplotlib
-from splot.libpysal import plot_spatial_weights 
-import plotnine as p9
-%matplotlib inline
-
-from cmdstanpy import CmdStanModel, cmdstan_path, cmdstan_version
-
-import warnings
-warnings.filterwarnings('ignore')
-from utils_bym2 import get_scaling_factor, nbs_to_adjlist
-from utils_dataviz import *
-```
-```{python}
-nyc_geodata = gpd.read_file(os.path.join('data', 'nyc_study.geojson'))
-nyc_geodata.columns
-```
-
-**R**
 ```{r}
 library(sf)
 library(spdep) |> suppressPackageStartupMessages()
@@ -105,7 +81,7 @@ options(width = 120)
 ```
 
 ```{r}
-nyc_geodata = st_read("data/nyc_study.geojson")
+nyc_geodata = st_read(file.path("..", "data", "nyc_study.geojson"))
 names(nyc_geodata)
 ```
 
@@ -119,16 +95,6 @@ census tracts, respectively.
 
 *This is a problem for the ICAR model, which operates on a fully connected graph (single component)*
 
-**Python**
-```{python}
-w_nyc_nbs = libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col='geometry')
-print(f'number of components: {w_nyc_nbs.n_components}')
-print(f'islands? {w_nyc_nbs.islands}')
-print(f'max number of neighbors per node: {w_nyc_nbs.max_neighbors}')
-print(f'mean number of neighbors per node: {w_nyc_nbs.mean_neighbors}')
-```
-
-**R**
 ```{r}
 nyc_nbs = poly2nb(nyc_geodata)
 summary(nyc_nbs)
@@ -139,21 +105,6 @@ table(n.comp.nb(nyc_nbs)$comp.id)
 
 * For this notebook we restrict our attention to Brooklyn, the largest borough in NYC, which is a single network component.
 
-**Python**
-```{python}
-brooklyn_geodata = nyc_geodata[nyc_geodata['BoroName']=='Brooklyn'].reset_index(drop=True)
-brooklyn_nbs = libpysal.weights.Queen.from_dataframe(brooklyn_geodata, geom_col='geometry')
-plot_spatial_weights(brooklyn_nbs, brooklyn_geodata) 
-```
-
-```{python}
-print(f'number of components: {brooklyn_nbs.n_components}')
-print(f'islands? {brooklyn_nbs.islands}')
-print(f'max number of neighbors per node: {brooklyn_nbs.max_neighbors}')
-print(f'mean number of neighbors per node: {brooklyn_nbs.mean_neighbors}')
-```
-
-**R**
 ```{r}
 brooklyn_geodata = nyc_geodata[nyc_geodata$BoroName=='Brooklyn', ]
 brooklyn_nbs = poly2nb(brooklyn_geodata)
@@ -220,18 +171,8 @@ therefore we add the constraint $\sum_{i} {\phi}_i = 0$.
 
 This file is in directory `stan/poisson_icar.stan`.
 
-**Python**
-```{python}
-poisson_icar_model_file = os.path.join('stan', 'poisson_icar.stan')
-
-with open(poisson_icar_model_file, 'r') as file:
-    contents = file.read()
-    print(contents)
-```
-
-**R**
 ```{r}
-poisson_icar_model_file = file.path('stan', 'poisson_icar.stan')
+poisson_icar_model_file = file.path("..", 'stan', 'poisson_icar.stan')
 cat(readLines(poisson_icar_model_file), sep="\n")
 ```
 
@@ -243,13 +184,6 @@ cat(readLines(poisson_icar_model_file), sep="\n")
   + Python package `libpysal`
   + R package `spdep`
 
-**Python**
-```{python}
-brooklyn_nbs_adj = nbs_to_adjlist(brooklyn_nbs)
-brooklyn_nbs_adj
-```
-
-**R**
 ```{r}
 brooklyn_nbs_adj = nbs_to_adjlist(brooklyn_nbs)
 brooklyn_nbs_adj[1:2, 1:10]
@@ -257,29 +191,6 @@ brooklyn_nbs_adj[1:2, 1:10]
 
 ### Assemble the input data 
 
-**Python**
-```{python}
-design_vars = np.array(['pct_pubtransit','med_hh_inc', 'traffic', 'frag_index'])
-
-design_mat = brooklyn_geodata[design_vars].to_numpy()
-design_mat[:, 1] = np.log(design_mat[:, 1])
-design_mat[:, 2] = np.log(design_mat[:, 2])
-
-pd.DataFrame(data=design_mat).describe()
-```
-
-```{python}
-pois_icar_data = {"N":brooklyn_geodata.shape[0],
-             "y":brooklyn_geodata['count'].astype('int'),
-             "E":brooklyn_geodata['kid_pop'].astype('int'),
-             "K":4,
-             "xs":design_mat,
-             "N_edges": brooklyn_nbs_adj.shape[1],
-             "neighbors": brooklyn_nbs_adj
-}
-```
-
-**R**
 ```{r}
 design_mat <- as.data.frame(brooklyn_geodata) %>%
   select(pct_pubtransit, med_hh_inc, traffic, frag_index) %>%
@@ -304,26 +215,12 @@ pois_icar_data <- list(
 
 ### Model is compiled (as needed) on instantiation 
 
-**Python**
-```{python}
-pois_icar_mod = CmdStanModel(stan_file=poisson_icar_model_file)
-```
-
-**R**
 ```{r}
 pois_icar_mod = cmdstan_model(stan_file=poisson_icar_model_file)
 ```
 
 ### Run the NUTS-HMC sampler, summarize results
 
-**Python**
-```{python}
-pois_icar_fit = pois_icar_mod.sample(data=pois_icar_data)
-pois_icar_fit.summary().round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
-```
-
-**R**
 ```{r}
 pois_icar_fit = pois_icar_mod$sample(data=pois_icar_data, parallel_chains=cores, refresh=0)
 pois_icar_fit 
@@ -342,14 +239,6 @@ with red indicating positive correlation and blue indicating negative correlatio
 The census tracts are listed roughly in geographic order, from north-to-south and
 east-to-west, thus adjacent elements along the diagonal are spatially adjacent.
 
-**Python**
-```{python}
-phi_icar = pois_icar_fit.stan_variable("phi")
-corr_plot = plot_icar_corr_matrix(phi_icar, 'ICAR correlation matrix', (10, 10))
-corr_plot
-```
-
-**R**
 ```{r}
 phi_icar <- as_draws_matrix(pois_icar_fit$draws("phi"))
 plot_icar_corr_matrix(phi_icar, 'ICAR correlation matrix')
@@ -360,17 +249,6 @@ and low correlation between distant regions, in the upper left-hand corner.
 
 ### Posterior predictive checks
 
-**Python**
-```{python}
-y_rep_icar = pois_icar_fit.stan_variable("y_rep")
-print(ppc_central_interval(y_rep_icar, pois_icar_data['y']))
-
-ppc_plot = ppc_y_yrep_overlay(y_rep_icar, pois_icar_data['y'],
-                                'Poisson + ICAR model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
-ppc_plot
-```
-
-**R**
 ```{r}
 y_rep_icar <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
 ppc_central_interval(y_rep_icar, pois_icar_data$y)
@@ -389,18 +267,8 @@ Therefore, we compare summary statistics, visualizations, and model runtimes.
 
 #### Poisson model (with centered predictors)
 
-**Python**
-```{python}
-pois_mod = CmdStanModel(stan_file=os.path.join(
-  'stan', 'poisson_ctr_preds.stan'))
-pois_fit = pois_mod.sample(data=pois_icar_data)
-pois_fit.summary().round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]']]
-```
-
-**R**
 ```{r}
-pois_re_mod = cmdstan_model(stan_file=file.path(
+pois_re_mod = cmdstan_model(stan_file=file.path("..", 
   'stan', 'poisson_ctr_preds.stan')) 
 pois_re_fit = pois_re_mod$sample(data=pois_icar_data, parallel_chains=cores, refresh=0)
 pois_re_fit 
@@ -408,18 +276,8 @@ pois_re_fit
 
 #### Poisson + RE model
 
-**Python**
-```{python}
-pois_re_mod = CmdStanModel(stan_file=os.path.join(
-  'stan', 'poisson_re.stan'))
-pois_re_fit = pois_re_mod.sample(data=pois_icar_data)
-pois_re_fit.summary().round(2).loc[
-  ['beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma']]
-```
-
-**R**
 ```{r}
-pois_re_mod = cmdstan_model(stan_file=file.path(
+pois_re_mod = cmdstan_model(stan_file=file.path("..", 
   'stan', 'poisson_re.stan')) 
 pois_re_fit = pois_re_mod$sample(data=pois_icar_data, parallel_chains=cores, refresh=0)
 pois_re_fit 
@@ -427,18 +285,6 @@ pois_re_fit
 
 ### Compare Posterior predictive check coverage
 
-**Python**
-```{python}
-print(ppc_central_interval(y_rep_icar, pois_icar_data['y']))
-
-y_rep_pois = pois_fit.stan_variable("y_rep")
-print(ppc_central_interval(y_rep_pois, pois_icar_data['y']))
-
-y_rep_re = pois_re_fit.stan_variable("y_rep")
-print(ppc_central_interval(y_rep_re, pois_icar_data['y']))
-```
-
-**R**
 ```{r}
 y_rep_icar <- as_draws_matrix(pois_icar_fit$draws("y_rep"))
 ppc_central_interval(y_rep_icar, pois_icar_data$y)
@@ -453,14 +299,6 @@ ppc_central_interval(y_rep_re, pois_icar_data$y)
 
 ### Poisson Model PPC plots
 
-**Python**
-```{python}
-ppc_plot = ppc_y_yrep_overlay(y_rep_pois, pois_icar_data['y'],
-                                'Poisson model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
-ppc_plot
-```
-
-**R**
 ```{r}
 ppc_y_yrep_overlay(y_rep_pois, pois_icar_data$y,
                      'Poisson model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
@@ -468,14 +306,6 @@ ppc_y_yrep_overlay(y_rep_pois, pois_icar_data$y,
 
 ### Poisson + RE Model PPC plots
 
-**Python**
-```{python}
-ppc_plot = ppc_y_yrep_overlay(y_rep_re, pois_icar_data['y'],
-                                'Poisson + RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
-ppc_plot
-```
-
-**R**
 ```{r}
 ppc_y_yrep_overlay(y_rep_re, pois_icar_data$y,
                      'Poisson + RE model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
@@ -483,14 +313,6 @@ ppc_y_yrep_overlay(y_rep_re, pois_icar_data$y,
 
 ### Poisson + ICAR Model PPC plots
 
-**Python**
-```{python}
-ppc_plot = ppc_y_yrep_overlay(y_rep_icar, pois_icar_data['y'],
-                                'Poisson + ICAR model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')
-ppc_plot
-```
-
-**R**
 ```{r}
 ppc_y_yrep_overlay(y_rep_icar, pois_icar_data$y,
                      'Poisson + ICAR model PPC\ny (blue dot) vs. y_rep (orange 50% central interval, grey full extent)')

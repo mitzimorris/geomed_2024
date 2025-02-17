@@ -2,14 +2,23 @@
 title: "Extending the BYM2 Model for Disconnected Graphs"
 format:
   html:
-    css: theming/quarto_styles.css 
+    theme:
+      - cosmo
+      - ../quarto-config/theme.scss
     syntax-definitions:
-      - theming/stan.xml
-    embed-resources: true
+      - ../quarto-config/stan.xml
+    highlight-style: ../quarto-config/tango.theme
+    code-copy: true
+    code-overflow: wrap
     toc: true
-    toc-location: left
+    css: ../quarto-config/quarto_styles.css
     grid:
-      body-width: 1000px
+      sidebar-width: 250px
+      body-width: 900px
+      margin-width: 300px
+output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -252,7 +261,7 @@ This transform is implemented by two functions in the `functions` block.
 ### Putting it all together:  `bym2_multicomp.stan`
 
 ```{r}
-bym2_multicomp_file = file.path('stan', 'bym2_multicomp.stan')
+bym2_multicomp_file = file.path("..", 'stan', 'bym2_multicomp.stan')
 cat(readLines(bym2_multicomp_file), sep="\n")
 ```
 
@@ -286,7 +295,7 @@ data {
 #### Load the NYC dataset
 
 ```{r}
-nyc_geodata = st_read("data/nyc_study.geojson")
+nyc_geodata = st_read(file.path("..", "data", "nyc_study.geojson"))
 names(nyc_geodata)
 ```
 
@@ -407,7 +416,7 @@ bym2_data <- list(
 Check that variance of scaled phi is approx $1$.
 
 ```{r}
-bym2_multicomp_gamma_ppc_file = file.path('stan', 'bym2_multicomp_gamma_ppc.stan')
+bym2_multicomp_gamma_ppc_file = file.path("..", 'stan', 'bym2_multicomp_gamma_ppc.stan')
 cat(readLines(bym2_multicomp_gamma_ppc_file), sep="\n")
 bym2_multicomp_gamma_ppc_mod = cmdstan_model(stan_file=bym2_multicomp_gamma_ppc_file)
 bym2_multicomp_gamma_ppc_fit = bym2_multicomp_gamma_ppc_mod$sample(data=bym2_data,
@@ -574,7 +583,7 @@ bym2_1comp_data <- list(
 Fit prior predictive model, check variance of scaled prior `phi` as well as `theta`.
 
 ```{r}
-bym2_gamma_ppc_mod = cmdstan_model(stan_file=file.path('stan', 'bym2_gamma_ppc.stan'))
+bym2_gamma_ppc_mod = cmdstan_model(stan_file=file.path("..", 'stan', 'bym2_gamma_ppc.stan'))
 bym2_1comp_gamma_ppc_fit = bym2_gamma_ppc_mod$sample(data=bym2_1comp_data, parallel_chains=cores, refresh=0)
 ```
 
@@ -606,7 +615,7 @@ To see the overall effect of creating a single connected component, which can be
 we fit the model on the data, and then compare the model estimates.
 
 ```{r}
-bym2_mod = cmdstan_model(stan_file=file.path('stan', 'bym2.stan'))
+bym2_mod = cmdstan_model(stan_file=file.path("..", 'stan', 'bym2.stan'))
 bym2_1comp_fit = bym2_mod$sample(data=bym2_1comp_data, parallel_chains=cores, iter_warmup=5000, iter_sampling=2000, refresh=0)
 bym2_1comp_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma', 'rho'))
 ```

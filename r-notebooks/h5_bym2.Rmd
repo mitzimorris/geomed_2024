@@ -2,14 +2,23 @@
 title: "Implementing the BYM2 Model in Stan"
 format:
   html:
-    css: theming/quarto_styles.css 
+    theme:
+      - cosmo
+      - ../quarto-config/theme.scss
     syntax-definitions:
-      - theming/stan.xml
-    embed-resources: true
+      - ../quarto-config/stan.xml
+    highlight-style: ../quarto-config/tango.theme
+    code-copy: true
+    code-overflow: wrap
     toc: true
-    toc-location: left
+    css: ../quarto-config/quarto_styles.css
     grid:
-      body-width: 1000px
+      sidebar-width: 250px
+      body-width: 900px
+      margin-width: 300px
+output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ### The BYM2 Model: Riebler et al, 2016
@@ -65,7 +74,7 @@ options(width = 120)
 ### Load NYC Dataset
 
 ```{r}
-nyc_geodata = st_read("data/nyc_study.geojson")
+nyc_geodata = st_read(file.path("..", "data", "nyc_study.geojson"))
 names(nyc_geodata)
 ```
 
@@ -111,7 +120,7 @@ $$\left( (\sqrt{\, {\rho} / s}\, \ )\,\phi^* + (\sqrt{1-\rho})\,\theta^* \right)
 This file is in directory `stan/bym2.stan`.
 
 ```{r}
-bym2_model_file = file.path('stan', 'bym2.stan')
+bym2_model_file = file.path("..", 'stan', 'bym2.stan')
 cat(readLines(bym2_model_file), sep="\n")
 ```
 
@@ -206,7 +215,7 @@ This allows us to assess the resulting priors on `phi`, `theta`, and `rho`
 *before incorporating any data*.
 
 ```{r}
-bym2_gamma_ppc_file = file.path('stan', 'bym2_gamma_ppc.stan')
+bym2_gamma_ppc_file = file.path("..", 'stan', 'bym2_gamma_ppc.stan')
 cat(readLines(bym2_gamma_ppc_file), sep="\n")
 ```
 
@@ -294,8 +303,7 @@ plot_icar_corr_matrix(phi_bym2, 'BYM2 spatial correlation')
 ##### Comparison to simple ICAR model 
 
 ```{r}
-pois_icar_mod = cmdstan_model(stan_file=file.path(
-  'stan', 'poisson_icar.stan')) 
+pois_icar_mod = cmdstan_model(stan_file=file.path("..", 'stan', 'poisson_icar.stan')) 
 pois_icar_fit = pois_icar_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
 phi_icar <- as_draws_matrix(pois_icar_fit$draws("phi"))
 plot_icar_corr_matrix(phi_icar, 'ICAR spatial correlation')
@@ -317,8 +325,7 @@ pois_icar_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[
 #### Poisson + RE model
 
 ```{r}
-pois_re_mod = cmdstan_model(stan_file=file.path(
-  'stan', 'poisson_re.stan')) 
+pois_re_mod = cmdstan_model(stan_file=file.path("..",  'stan', 'poisson_re.stan')) 
 pois_re_fit = pois_re_mod$sample(data=bym2_data, parallel_chains=cores, refresh=0)
 pois_re_fit$print(variables = c('beta_intercept', 'beta0', 'betas[1]', 'betas[2]', 'betas[3]', 'betas[4]', 'sigma'))
 ```

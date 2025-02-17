@@ -2,14 +2,23 @@
 title: "Stan Model Building Workflow"
 format:
   html:
-    css: theming/quarto_styles.css 
+    theme:
+      - cosmo
+      - ../quarto-config/theme.scss
     syntax-definitions:
-      - theming/stan.xml
-    embed-resources: true
+      - ../quarto-config/stan.xml
+    highlight-style: ../quarto-config/tango.theme
+    code-copy: true
+    code-overflow: wrap
     toc: true
-    toc-location: left
+    css: ../quarto-config/quarto_styles.css
     grid:
-      body-width: 1000px
+      sidebar-width: 250px
+      body-width: 900px
+      margin-width: 300px
+output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 When writing a Stan model, as when writing any other computer program,\
@@ -46,7 +55,7 @@ options(width = 120)
 This file is in directory `stan/poisson.stan`.
 
 ```{r}
-poisson_model_file = file.path('stan', 'poisson.stan')
+poisson_model_file = file.path("..", 'stan', 'poisson.stan')
 cat(readLines(poisson_model_file), sep="\n")
 ```
 
@@ -177,7 +186,7 @@ as recorded by the NYC Department of Transportation, between the years 2005-2014
 restricted to collisions involving school age children 5-18 years of age as pedestrians.
 
 ```{r}
-nyc_geodata = st_read("data/nyc_study.geojson")
+nyc_geodata = st_read(file.path("..", "data", "nyc_study.geojson"))
 names(nyc_geodata)
 table(nyc_geodata$BoroName)
 ```
@@ -265,7 +274,7 @@ generated quantities {
 ```
 
 ```{r}
-pois_xc_mod = cmdstan_model(stan_file=file.path(
+pois_xc_mod = cmdstan_model(stan_file=file.path("..", 
   'stan', 'poisson_ctr_preds.stan')) 
 pois_xc_fit = pois_xc_mod$sample(data=pois_data, parallel_chains=cores, refresh=0)
 pois_xc_fit
@@ -418,7 +427,7 @@ generated quantities {
 ```
 
 ```{r}
-pois_re_mod = cmdstan_model(stan_file=file.path(
+pois_re_mod = cmdstan_model(stan_file=file.path("..", 
   'stan', 'poisson_re.stan')) 
 pois_re_fit = pois_re_mod$sample(data=pois_data, parallel_chains=cores, refresh=0)
 pois_re_fit 

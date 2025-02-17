@@ -1,5 +1,5 @@
 This repository contains a series of notebooks developed for 
-workshop ** Spatial Modeling with Stan**  at [GeoMed 2024](https://www.uhasselt.be/en/events-en/2023-2024/geomed2024).
+workshop **Spatial Modeling with Stan**  at [GeoMed 2024](https://www.uhasselt.be/en/events-en/2023-2024/geomed2024).
 
 >The goals of this workshop are twofold:
 

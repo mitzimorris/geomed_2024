@@ -313,7 +313,10 @@ pois_data_2 <- list(
   xs = design_mat_2
 )
 
+print("data scaled: log income, log traffic")
 print(summary(design_mat))
+
+print("data unscaled")
 print(summary(design_mat_2))
 ```
 

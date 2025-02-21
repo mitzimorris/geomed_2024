@@ -3657,7 +3657,7 @@ color: var(--quarto-text-muted);
 <section id="notebook-startup-load-packages-libraries" class="level3">
 <h3 class="anchored" data-anchor-id="notebook-startup-load-packages-libraries">Notebook Startup: Load Packages / Libraries</h3>
 <p><strong>Python</strong></p>
-<div id="a6d98e9e" class="cell" data-execution_count="1">
+<div id="42b9113a" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># import all libraries used in this notebook</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -3703,8 +3703,8 @@ color: var(--quarto-text-muted);
 <h3 class="anchored" data-anchor-id="load-study-data">Load study data</h3>
 <p>The study data and GIS data have been assembled into a single GeoJSON file.</p>
 <p><strong>Python</strong></p>
-<div id="288b3a34" class="cell" data-execution_count="2">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="op">=</span> gpd.read_file(os.path.join(<span class="st">&#39;data&#39;</span>, <span class="st">&#39;nyc_study.geojson&#39;</span>))</span>
+<div id="1e8c6c9a" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>nyc_geodata <span class="op">=</span> gpd.read_file(os.path.join(<span class="st">&#39;..&#39;</span>, <span class="st">&#39;data&#39;</span>, <span class="st">&#39;nyc_study.geojson&#39;</span>))</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">type</span>(nyc_geodata))</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(nyc_geodata.columns)</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(nyc_geodata[<span class="st">&#39;BoroName&#39;</span>].value_counts())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -3726,7 +3726,7 @@ Name: count, dtype: int64</code></pre>
 </div>
 <p><strong>R</strong></p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="in">nyc_geodata = st_read(file.path(&quot;data&quot;, &quot;nyc_study.geojson&quot;))</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="in">nyc_geodata = st_read(file.path(&quot;..&quot;, &quot;data&quot;, &quot;nyc_study.geojson&quot;))</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="in">class(nyc_geodata)</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="in">names(nyc_geodata)</span></span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="in">table(nyc_geodata$BoroName)</span></span>
@@ -3736,7 +3736,7 @@ Name: count, dtype: int64</code></pre>
 <p>Plot the observed outcome <code>counts</code>.</p>
 <p><em>Note:</em> Count data is properly plotted as a bar chart, not histogram plus density, but the visualization is useful.</p>
 <p><strong>Python</strong></p>
-<div id="ae7ca6d7" class="cell" data-execution_count="3">
+<div id="bbb3d26e" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>p1 <span class="op">=</span> (</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    p9.ggplot(data<span class="op">=</span>nyc_geodata, mapping<span class="op">=</span>p9.aes(x<span class="op">=</span><span class="st">&#39;count&#39;</span>)) <span class="op">+</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    p9.geom_histogram(p9.aes(y<span class="op">=</span>p9.after_stat(<span class="st">&#39;density&#39;</span>)), bins<span class="op">=</span><span class="dv">58</span>, color<span class="op">=</span><span class="st">&#39;DarkBlue&#39;</span>) <span class="op">+</span></span>
@@ -3769,7 +3769,7 @@ Name: count, dtype: int64</code></pre>
 <section id="show-areal-map-fill-color-is-accidents-per-tract" class="level4">
 <h4 class="anchored" data-anchor-id="show-areal-map-fill-color-is-accidents-per-tract">Show areal map, fill color is accidents per tract</h4>
 <p><strong>Python</strong></p>
-<div id="509593ed" class="cell" data-execution_count="4">
+<div id="8f15f34f" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>p2 <span class="op">=</span> (</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    p9.ggplot(nyc_geodata) <span class="op">+</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    p9.geom_map(p9.aes(fill<span class="op">=</span><span class="st">&#39;count&#39;</span>)) <span class="op">+</span></span>
@@ -3797,7 +3797,7 @@ Name: count, dtype: int64</code></pre>
 <section id="show-areal-map-fill-color-is-kid-population-per-tract" class="level4">
 <h4 class="anchored" data-anchor-id="show-areal-map-fill-color-is-kid-population-per-tract">Show areal map, fill color is kid population per tract</h4>
 <p><strong>Python</strong></p>
-<div id="d65661e2" class="cell" data-execution_count="5">
+<div id="d154dce4" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>p3 <span class="op">=</span> (</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    p9.ggplot(nyc_geodata) <span class="op">+</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    p9.geom_map(p9.aes(fill<span class="op">=</span><span class="st">&#39;kid_pop&#39;</span>)) <span class="op">+</span></span>
@@ -3825,7 +3825,7 @@ Name: count, dtype: int64</code></pre>
 <section id="population-raw-counts-density-per-square-mile" class="level4">
 <h4 class="anchored" data-anchor-id="population-raw-counts-density-per-square-mile">Population: raw counts, density per square mile</h4>
 <p><strong>Python</strong></p>
-<div id="5a31eb39" class="cell" data-execution_count="6">
+<div id="85a20172" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>p4 <span class="op">=</span> (</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    p9.ggplot(nyc_geodata) <span class="op">+</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    p9.geom_map(p9.aes(fill<span class="op">=</span><span class="st">&#39;kids_per_sq_mi&#39;</span>)) <span class="op">+</span></span>
@@ -3864,7 +3864,7 @@ Name: count, dtype: int64</code></pre>
 <h2 class="anchored" data-anchor-id="from-spatial-dataframes-to-graphs">From spatial dataframes to graphs</h2>
 <p>The neighbor graph is constructed from a geodataframe by analysis of the bounding polygons in the <code>geometry</code> column. Both libpysal and spdep provide functions to visualize neighbor graph overlaid on the map. The neighbor graph objects merely index entries in the geodataframe. Therefore plotting requires extracting the centroids of each regions from the geodataframe in order to align the graph to the map. Because the default indexing scheme is row index, it is critical that the dataframe and the neighbor graph remain in sync; reordering or otherwise modifying the geodataframe will completely scramble the graph and the resulting plot will look nothing like a proper network.</p>
 <p><strong>Python</strong></p>
-<div id="253872f2" class="cell" data-execution_count="7">
+<div id="c169d760" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>nyc_nbs <span class="op">=</span> libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>plot_spatial_weights(nyc_nbs, nyc_geodata)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -3884,7 +3884,7 @@ Name: count, dtype: int64</code></pre>
 <span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>The per-node sets of neighbors are the same. To see this, we examine the set of neighbors for the first 3 nodes in the graph.</p>
 <p><strong><em>Python</em></strong></p>
-<div id="9be5f70f" class="cell" data-results="hold" data-execution_count="8">
+<div id="e0a0ae9e" class="cell" data-results="hold" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;neighbors&#39;</span>, <span class="bu">list</span>(nyc_nbs.neighbors.items())[:<span class="dv">3</span>])</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;cardinalities&#39;</span>, <span class="bu">list</span>(nyc_nbs.cardinalities.values())[:<span class="dv">3</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -3910,7 +3910,7 @@ cardinalities [3, 5, 7]</code></pre>
 <p>A graph component is a set of 2 or more nodes for which there is a path from any node in the component to every other node in that set. A component is a set of nodes and edge pairs where every node is a member of at least one edge pair. A fully connected graph is a graph consisting of a single component, so that it is possible to find a path from any node in the graph to every other node. As the map of NYC shows (above), the graph is not fully connected, i.e., it is impossible to find a path from Staten Island to the Bronx, and there are 3 regions which have no neighbors - these are islands, (also called singleton nodes).</p>
 <p>The <code>libpysal</code> and <code>spdep</code> APIs both provide a series of methods and attributes for computing properties of the neighbor graph.</p>
 <p><strong>Python</strong></p>
-<div id="228ad296" class="cell" data-results="hold" data-execution_count="9">
+<div id="60d34a96" class="cell" data-results="hold" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;max number of neighbors per node: </span><span class="sc">{</span>nyc_nbs<span class="sc">.</span>max_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;mean number of neighbors per node: </span><span class="sc">{</span>nyc_nbs<span class="sc">.</span>mean_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;islands? </span><span class="sc">{</span>nyc_nbs<span class="sc">.</span>islands<span class="sc">}</span><span class="ss">&#39;</span>)</span>
@@ -3946,7 +3946,7 @@ component 7: 108</code></pre>
 <h3 class="anchored" data-anchor-id="rook-vs-queen---does-it-make-a-difference">Rook vs Queen - does it make a difference?</h3>
 <p>Consider the non-edge squares on a chessboard. By the Rook metric each square has 4 neighbors and by the Queen metric, each square has 8 neighbors. How does this play out when the map is not as regular as a chessboard?</p>
 <p><strong>Python</strong></p>
-<div id="33e3de8c" class="cell" data-results="hold" data-execution_count="10">
+<div id="f6426e5d" class="cell" data-results="hold" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>nyc_nbs_rook <span class="op">=</span> libpysal.weights.Rook.from_dataframe(nyc_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;queen max number of neighbors per node: </span><span class="sc">{</span>nyc_nbs<span class="sc">.</span>max_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;rook max number of neighbors per node: </span><span class="sc">{</span>nyc_nbs_rook<span class="sc">.</span>max_neighbors<span class="sc">}</span><span class="ss">&#39;</span>)</span>
@@ -3991,7 +3991,7 @@ rook number of components: 8</code></pre>
 <li><p><code>W.cardinalities</code>: A dict mapping each region ID to its number of neighbors.</p></li>
 </ul>
 <p>If weights object is created without specifying the region IDS, (as we did above) the positional row indices of the geodataframe are used as ids.</p>
-<div id="75571ac9" class="cell" data-results="hold" data-execution_count="11">
+<div id="6e1beafd" class="cell" data-results="hold" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;neighbors&#39;</span>, <span class="bu">list</span>(nyc_nbs.neighbors.items())[:<span class="dv">3</span>])</span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;cardinalities&#39;</span>, <span class="bu">list</span>(nyc_nbs.cardinalities.values())[:<span class="dv">3</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -4071,7 +4071,7 @@ cardinalities [3, 5, 7]</code></pre>
 <h2 class="anchored" data-anchor-id="deleting-edges-from-the-neighbor-graph">Deleting edges from the neighbor graph</h2>
 <p>To delete an edge between nodes <code>i</code> and <code>j</code> in the libpysal <code>W</code> object requires updating the <code>neighbors</code> and <code>weights</code> entries for both <code>i</code> and <code>j</code> as well as decrementing the cardinality of each. If this edit disconnects the graph or subgraph, it is necessary to instantiate a new <code>W</code> object from the <code>neighbors</code> and <code>weights</code> list in order to recompute the <code>n_components</code> and <code>component_labels</code> attributes.</p>
 <p><strong>Python</strong></p>
-<div id="823f54fb" class="cell" data-execution_count="12">
+<div id="d3bcc2b7" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> delete_symmetric_edge(w, i, j):</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;</span></span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Remove the neighbor relationship between i and j in a libpysal.weights.W object.</span></span>
@@ -4108,7 +4108,7 @@ cardinalities [3, 5, 7]</code></pre>
 <p>Instead of targeting the spurious connections directly via the node indices, we instead use the <code>BoroName</code> column of the <code>nyc_geodata</code> geodataframe to get per-borough lists of node ids and use them to identify which edges to drop from the graph.</p>
 <p>The geodataframe <code>nyc_geodata</code> contains column <code>BoroName</code>. We use this to get the list of row indices for each of the boroughs Manhattan, Brooklyn, and Queens.</p>
 <p><strong>Python</strong></p>
-<div id="8a11294b" class="cell" data-results="hold" data-execution_count="13">
+<div id="284c9b4c" class="cell" data-results="hold" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>manhattan_indices <span class="op">=</span> nyc_geodata[nyc_geodata[<span class="st">&#39;BoroName&#39;</span>] <span class="op">==</span> <span class="st">&#39;Manhattan&#39;</span>].index</span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>brooklyn_indices <span class="op">=</span> nyc_geodata[nyc_geodata[<span class="st">&#39;BoroName&#39;</span>] <span class="op">==</span> <span class="st">&#39;Brooklyn&#39;</span>].index</span>
 <span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>queens_indices <span class="op">=</span> nyc_geodata[nyc_geodata[<span class="st">&#39;BoroName&#39;</span>] <span class="op">==</span> <span class="st">&#39;Queens&#39;</span>].index</span>
@@ -4133,7 +4133,7 @@ Brooklyn and Queens census tracts:  1384</code></pre>
 <span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Because these lists have 274 and 13,884 entries respectively, we use set operations for efficient computation, instead of repeated calls to <code>remove_symmetric_edge</code>.</p>
 <p><strong>Python</strong></p>
-<div id="198f3d8f" class="cell" data-execution_count="14">
+<div id="a4e175a7" class="cell" data-execution_count="14">
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> clean_nbs_symmetric(w, target_indices, remove_indices):</span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;</span></span>
 <span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Efficiently edit a neighbor graph by removing specified edges symmetrically.</span></span>
@@ -4183,7 +4183,7 @@ Brooklyn and Queens census tracts:  1384</code></pre>
 <span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>After calling this function, we replot the map to check our work.</p>
 <p><strong>Python</strong></p>
-<div id="c077b0ca" class="cell" data-results="hold" data-execution_count="15">
+<div id="be961504" class="cell" data-results="hold" data-execution_count="15">
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>clean_nbs_symmetric(nyc_nbs, manhattan_indices, brooklyn_and_queens)</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>plot_spatial_weights(nyc_nbs, nyc_geodata)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -4195,7 +4195,7 @@ Brooklyn and Queens census tracts:  1384</code></pre>
 </div>
 </div>
 <p>Further checks on the Python object require instantiating a new <code>W</code> object in order to recompute its attributes.</p>
-<div id="74868ff7" class="cell" data-results="hold" data-execution_count="16">
+<div id="94b80230" class="cell" data-results="hold" data-execution_count="16">
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>nyc_nbs_clean <span class="op">=</span> libpysal.weights.W(nyc_nbs.neighbors, nyc_nbs.weights)</span>
 <span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;is symmetric? </span><span class="sc">{</span><span class="bu">len</span>(nyc_nbs_clean.asymmetries) <span class="op">==</span> <span class="dv">0</span><span class="sc">}</span><span class="ss">&#39;</span>)</span>
@@ -4227,7 +4227,7 @@ component size [ 329    1 1360  271    2    1   22    1  108]</code></pre>
 <h2 class="anchored" data-anchor-id="adding-edges-to-the-neighbor-graph">Adding edges to the neighbor graph</h2>
 <p>To add an edge between nodes <code>i</code> and <code>j</code> in the libpysal <code>W</code> object requires updating the <code>neighbors</code> and <code>weights</code> entries for both <code>i</code> and <code>j</code> as well as incrementing the cardinality of each. If this edit changes the component structure of the neighbor graph you must instantiate a new <code>W</code> object from the <code>neighbors</code> and <code>weights</code> list.</p>
 <p><strong>Python</strong></p>
-<div id="757b31e7" class="cell" data-execution_count="17">
+<div id="ee2529e8" class="cell" data-execution_count="17">
 <div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_symmetric_edge(w, i, j, weight<span class="op">=</span><span class="fl">1.0</span>):</span>
 <span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;</span></span>
 <span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Add a symmetric neighbor relationship between nodes i and j in a libpysal.weights.W object.</span></span>
@@ -4275,7 +4275,7 @@ component size [ 329    1 1360  271    2    1   22    1  108]</code></pre>
 <p>Since the graph is not connected, there is no correct way to connect these regions, but we try to find reasonably “close” pairs of regions to connect.</p>
 <p>To edit the libpysal neighbor graph and keep indices consistent between graph edits in R and Python, we define a helper function `add_symmetric_edge’.</p>
 <p><strong>Python</strong></p>
-<div id="e69e7f1f" class="cell" data-execution_count="18">
+<div id="7c3e74eb" class="cell" data-execution_count="18">
 <div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_symmetric_edge(nbs: libpysal.weights.W, region_i: <span class="bu">int</span>, region_j: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
 <span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;</span></span>
 <span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Modify a weights object, adding a bidirectional connection</span></span>
@@ -4319,7 +4319,7 @@ component size [ 329    1 1360  271    2    1   22    1  108]</code></pre>
 <span id="cb45-20"><a href="#cb45-20" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>To fully connect the NYC neighbor graph we call this function repeatedly.</p>
 <p><strong>Python</strong></p>
-<div id="802b882f" class="cell" data-execution_count="19">
+<div id="5f0e58b7" class="cell" data-execution_count="19">
 <div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create fully connected network</span></span>
 <span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="co"># nyc_geodata is from file &quot;nyc_study.geojson&quot;, order unchanged</span></span>
 <span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>nyc_nbs <span class="op">=</span> libpysal.weights.Queen.from_dataframe(nyc_geodata, geom_col<span class="op">=</span><span class="st">&#39;geometry&#39;</span>)</span>
@@ -4342,7 +4342,7 @@ component size [ 329    1 1360  271    2    1   22    1  108]</code></pre>
 </div>
 </div>
 </div>
-<div id="a2290a1e" class="cell" data-results="hold" data-execution_count="20">
+<div id="c040fcbd" class="cell" data-results="hold" data-execution_count="20">
 <div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="co"># check your work</span></span>
 <span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;is symmetric? </span><span class="sc">{</span><span class="bu">len</span>(nyc_nbs_connected.asymmetries) <span class="op">==</span> <span class="dv">0</span><span class="sc">}</span><span class="ss">&#39;</span>)</span>
 <span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&#39;number of components: </span><span class="sc">{</span>nyc_nbs_connected<span class="sc">.</span>n_components<span class="sc">}</span><span class="ss">&#39;</span>)</span>

@@ -2,21 +2,9 @@
 title: "Implementing the BYM2 Model in Stan"
 format:
   html:
-    theme:
-      - cosmo
-      - ../quarto-config/theme.scss
-    syntax-definitions:
-      - ../quarto-config/stan.xml
-    highlight-style: ../quarto-config/tango.theme
     code-copy: true
     code-overflow: wrap
     toc: true
-    css: ../quarto-config/quarto_styles.css
-    grid:
-      sidebar-width: 250px
-      body-width: 900px
-      margin-width: 300px
-output: html_document
 editor_options: 
   chunk_output_type: console
 ---
